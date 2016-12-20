@@ -36,7 +36,7 @@ ARGS=
 
 test:
 	scp ${LOCAL}${APP} ${USER}@${TEST_SERVER}:${REMOTE}
-	ssh ${USER}@${TEST_SERVER} '${REMOTE}${APP} ${ARGS}'
+	# ssh ${USER}@${TEST_SERVER} '${REMOTE}${APP} ${ARGS}'
 production: test
 	scp ${LOCAL}${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
 
