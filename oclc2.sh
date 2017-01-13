@@ -76,7 +76,7 @@ run_mixed()
 {
 	get_password
 	printf ">>>%s\n" $PASSWORD### TEST
-	printf "running mixed..." >&2
+	printf "running mixed...\n" >&2
 	return 0
 }
 
@@ -88,7 +88,7 @@ run_mixed()
 test_set_date()
 {
 	# If a value was supplied test it.
-	if [ $# > 0 ]; then
+	if [ "$1" ] && [ $1 > 0 ]; then
 		size=${#1}
 		printf "arg size set to %s\n" $size >&2 ### TEST
 		if [ $size -ne 8 ]; then
@@ -96,7 +96,7 @@ test_set_date()
 			return 1
 		else
 			MILESTONE=$1
-			printf "milestone set to %s date." $MILESTONE >&2
+			printf "milestone set to %s date.\n" $MILESTONE >&2
 		fi
 	else # No date was given as a parameter.
 		# Test for last run date. If there is one use the date inside.
@@ -161,8 +161,6 @@ if [ $# -eq 0 ] ; then
 			show_usage
 			;;
 	esac
-	printf "done" >&2
-	exit 0
 elif [ $# -eq 1 ]; then
 	case "$1" in
 		[cC])
@@ -189,8 +187,6 @@ elif [ $# -eq 1 ]; then
 			show_usage
 			;;
 	esac
-	printf "done" >&2
-	exit 0
 elif [ $# -eq 2 ]; then
 	# The second value on the command line is supposed to be an ANSI date like YYYYMMDD.
 	date_check_result=test_set_date $2
@@ -223,9 +219,9 @@ elif [ $# -eq 2 ]; then
 			show_usage
 			;;
 	esac
-	printf "done" >&2
-	exit 0
 else  # more than 2 arguments suggests user may not be familiar with this application.
 	show_usage
 fi
+printf "done\n\n" >&2
+exit 0
 # EOF
