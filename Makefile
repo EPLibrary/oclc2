@@ -3,8 +3,8 @@
 # Created: 2016-12-12
 # Copyright (c) Edmonton Public Library 2016-12-12
 #
-#<one line to give the program's name and a brief idea of what it does.>
-#    Copyright (C) 2015  Andrew Nisbet
+# Manages the distribution of oclc2.pl.
+#    Copyright (C) 2016  Andrew Nisbet
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,11 +32,9 @@ USER=sirsi
 REMOTE=~/Unicorn/EPLwork/anisbet/
 LOCAL=~/projects/oclc2/
 APP=oclc2.sh
-ARGS=
 
-test:
+test: ${APP}
 	scp ${LOCAL}${APP} ${USER}@${TEST_SERVER}:${REMOTE}
-	# ssh ${USER}@${TEST_SERVER} '${REMOTE}${APP} ${ARGS}'
 production: test
 	scp ${LOCAL}${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
 
