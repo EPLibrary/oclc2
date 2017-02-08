@@ -34,7 +34,7 @@
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
 VERSION=0.0
-PASSWORD_FILE=`pwd`/password.txt
+PASSWORD_FILE=`pwd`/oclc2.password.txt
 PASSWORD=''
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -42,11 +42,13 @@ START_DATE=$(transdate -d-7)
 # we will save the date last run as a zero-byte file.
 END_DATE=$(transdate -d-0)
 HISTORY_DIRECTORY=`getpathname hist`
-HISTORY_FILE_SELECTION=`pwd`/history.file.lst
+HISTORY_FILE_SELECTION=`pwd`/oclc2.history.file.lst
+CANCEL_FLEX_OCLC_FILE=`pwd`/oclc2.flexkeys.OCLCnumber.lst
+UNFOUND_FLEXKEYS=`pwd`/oclc2.unfound.flexkeys.lst
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
-DATE_FILE=last.run
+DATE_FILE=`pwd`/oclc2.last.run
 if [[ -s "$DATE_FILE" ]]; then
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
 fi
@@ -112,10 +114,41 @@ run_cancels()
 	for h_file in $(cat $HISTORY_FILE_SELECTION |tr "\n" " ")
 	do
 		# Search the arg list of log files for entries of remove item (FV) and remove title option (NOY).
-		printf "searching history file %s for delted titles.\n" $h_file >&2
+		printf "searching history file %s/%s for deleted titles.\n" $HISTORY_DIRECTORY $h_file >&2
 		# E201405271803190011R ^S75FVFFADMIN^FEEPLMNA^FcNONE^NQ31221079015892^NOY^NSEPLJPL^IUa554837^tJ554837^aA(OCoLC)56729751^^O00099
-		# zcat $h_file | egrep -e "FVFF" | egrep -e "NOY" | pipe.pl -g"any:IU|aA" 2>collected.lst
+		# Extract the cat key and Flex key from the history logs.
+		if [ -s "$HISTORY_DIRECTORY/$h_file" ]; then
+			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVFF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>$CANCEL_FLEX_OCLC_FILE >/dev/null
+		else
+			local this_month=$(echo $h_file | pipe.pl -m'c0:###########_') # remove the .Z for this month.
+			if [ -s "$HISTORY_DIRECTORY/$this_month" ]; then
+				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVFF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>$CANCEL_FLEX_OCLC_FILE >/dev/null
+			else
+				printf "omitting %s\n" $h_file
+			fi
+		fi
 	done
+	# Now we should have a file like this.
+	# IUa1848301|aAocn844956543
+	# Clean it for the next selection.
+	if [ -s "$CANCEL_FLEX_OCLC_FILE" ]; then
+		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 >tmp.$$
+		mv tmp.$$ $CANCEL_FLEX_OCLC_FILE
+		# Should now look like this.
+		# a1870593|ocm71780540
+		# LSC2923203|(OCoLC)932576987
+		# Pass these Flex keys to selcatalog and collect the error 111. 
+		# These are truely removed titles - not just removed items from 
+		# a title, or a title that has been replaced.
+		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$UNFOUND_FLEXKEYS
+		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
+		# Snag the flex key and save it then diff.pl to get the canonical list of missing flex keys.
+		cat $UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 >tmp.$$
+		mv tmp.$$ $UNFOUND_FLEXKEYS
+		echo "$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE" #| diff.pl -ec0 -fc0 >test.diff.lst
+		## TODO: Continue here.
+	fi
+	
 	return 0
 }
 
@@ -128,7 +161,27 @@ run_mixed()
 	printf "running mixed...\n" >&2
 	return 0
 }
-
+# Ask if for the date if user using no args.
+# If the user has not specified any args, they will be asked what action they want to
+# do, but we also need to confirm the last milestone date.
+# param:  none
+# return: 0
+ask_mod_date()
+{
+	printf "Do you want to continue with processing items from the last milestone date: %s? [y]/n " $START_DATE >&2
+	read use_date
+	case "$use_date" in
+		[nN])
+			printf "\nEnter new date: " >&2
+			read START_DATE
+			;;
+		*)
+			printf "continuing with last milestone date.\n" >&2
+			;;
+	esac
+	printf "Date set to %s\n" $START_DATE >&2
+	return 0
+}
 # Usage message then exits.
 # param:  none.
 # return: exits with status 99
@@ -167,12 +220,15 @@ if [ $# -eq 0 ] ; then
 	read operation
 	case "$operation" in
 		[cC])
+			ask_mod_date
 			run_cancels
 			;;
 		[mM])
+			ask_mod_date
 			run_mixed
 			;;
 		[bB])
+			ask_mod_date
 			run_cancels
 			run_mixed
 			;;
