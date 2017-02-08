@@ -46,6 +46,7 @@ HISTORY_FILE_SELECTION=`pwd`/oclc2.history.file.lst
 CANCEL_FLEX_OCLC_FILE=`pwd`/oclc2.flexkeys.OCLCnumber.lst
 UNFOUND_FLEXKEYS=`pwd`/oclc2.unfound.flexkeys.lst
 CANCEL_DIFF_FILE=`pwd`/oclc2.diff.lst
+ERROR_LOG=`pwd`/err.log
 FINAL_CANCEL_FLAT_FILE=`pwd`/oclc2.final.flat
 FINAL_CANCEL_MARC_FILE=`pwd`/oclc2.final.mrc
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
@@ -166,9 +167,15 @@ run_cancels()
 		fi
 		while read -r file_line
 		do
-			echo "..............................test: '$file_line'" >&2
-			printFlatMARC $file_line
+			if ! printFlatMARC $file_line
+			then
+				printf "** error '%s' malformed.\n" $CANCEL_DIFF_FILE >&2
+				exit 1
+			fi
 		done <$CANCEL_DIFF_FILE
+		# Now to make the MARC output from the flat file.
+		printf "creating marc file.\n" >&2
+		cat $FINAL_CANCEL_FLAT_FILE | flatskip -aMARC -if -om > $FINAL_CANCEL_MARC_FILE 2>>$ERROR_LOG
 	fi
 	return 0
 }
