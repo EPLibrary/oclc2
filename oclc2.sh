@@ -45,6 +45,9 @@ HISTORY_DIRECTORY=`getpathname hist`
 HISTORY_FILE_SELECTION=`pwd`/oclc2.history.file.lst
 CANCEL_FLEX_OCLC_FILE=`pwd`/oclc2.flexkeys.OCLCnumber.lst
 UNFOUND_FLEXKEYS=`pwd`/oclc2.unfound.flexkeys.lst
+CANCEL_DIFF_FILE=`pwd`/oclc2.diff.lst
+FINAL_CANCEL_FLAT_FILE=`pwd`/oclc2.final.flat
+FINAL_CANCEL_MARC_FILE=`pwd`/oclc2.final.mrc
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
@@ -77,21 +80,28 @@ get_password()
 # Outputs a well-formed flat MARC record of the argument record and date string.
 # This subroutine is used in the Cancels process.
 # param:  The record is a flex key and oclcNumber separated by a pipe: AAN-1945|(OCoLC)3329882|
-# param:  The date is, well, the date in 'yymmdd' format. Example: 120831
 # output: flat MARC record as a string.
 printFlatMARC()
 {
-	local record=$1
-	local date=$2
-	local flexKey=$(echo $record | pipe.pl -oc0)
-	local oclcNumber=$(echo $record | pipe.pl -oc1)
-	printf "*** DOCUMENT BOUNDARY ***\n"
-	printf "FORM=MARC\n"
-	printf ".000. |aamI 0d\n"
-	printf ".001. |a%s\n" $flexKey
-	printf ".008. |a%snuuuu    xx            000 u und u\n" $date
-	printf ".035.   |a%s\n" $oclcNumber # like (OCoLC)32013207
-	printf ".852.   |aCNEDM\n"
+	# the date in 'yymmdd' format. Example: 120831
+	local date=$(date +%y%m%d)
+	local flexKey=$(echo "$1" | pipe.pl -oc0)
+	if [[ -z "${flexKey// }" ]]; then
+		printf "* warning no flex key provided, skipping record %s.\n" $record >&2
+		return 1
+	fi
+	local oclcNumber=$(echo "$1" | pipe.pl -oc1)
+	if [[ -z "${oclcNumber// }" ]]; then
+		printf "* warning no OCLC number found in record %s, skipping.\n" $record >&2
+		return 1
+	fi
+	echo "*** DOCUMENT BOUNDARY ***" >>$FINAL_CANCEL_FLAT_FILE
+	echo "FORM=MARC" >>$FINAL_CANCEL_FLAT_FILE
+	echo ".000. |aamI 0d" >>$FINAL_CANCEL_FLAT_FILE
+	echo ".001. |a$flexKey"  >>$FINAL_CANCEL_FLAT_FILE
+	echo ".008. |a"$date"nuuuu    xx            000 u und u" >>$FINAL_CANCEL_FLAT_FILE
+	echo ".035.   |a$oclcNumber"  >>$FINAL_CANCEL_FLAT_FILE # like (OCoLC)32013207
+	echo ".852.   |aCNEDM"   >>$FINAL_CANCEL_FLAT_FILE
 	return 0
 }
 
@@ -132,7 +142,7 @@ run_cancels()
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
 	if [ -s "$CANCEL_FLEX_OCLC_FILE" ]; then
-		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 >tmp.$$
+		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >tmp.$$
 		mv tmp.$$ $CANCEL_FLEX_OCLC_FILE
 		# Should now look like this.
 		# a1870593|ocm71780540
@@ -143,12 +153,23 @@ run_cancels()
 		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$UNFOUND_FLEXKEYS
 		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
 		# Snag the flex key and save it then diff.pl to get the canonical list of missing flex keys.
-		cat $UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 >tmp.$$
+		# The trailing pipe will be useful to sep values in the following diff.pl command.
+		cat $UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
 		mv tmp.$$ $UNFOUND_FLEXKEYS
-		echo "$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE" #| diff.pl -ec0 -fc0 >test.diff.lst
-		## TODO: Continue here.
+		echo "echo \"$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE\" | diff.pl -ec0 -fc0 -mc1"
+		echo "$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCEL_DIFF_FILE
+		# a809658|(OCoLC)320195792
+		# Create the brief delete MARC file of all the entries.
+		# If one pre-exists we will delete it now so we can just keep appending in the loop.
+		if [[ -s "$FINAL_CANCEL_FLAT_FILE" ]]; then
+			rm $FINAL_CANCEL_FLAT_FILE
+		fi
+		while read -r file_line
+		do
+			echo "..............................test: '$file_line'" >&2
+			printFlatMARC $file_line
+		done <$CANCEL_DIFF_FILE
 	fi
-	
 	return 0
 }
 
