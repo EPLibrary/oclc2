@@ -42,20 +42,20 @@ START_DATE=$(transdate -d-7)
 # we will save the date last run as a zero-byte file.
 END_DATE=$(transdate -d-0)
 HISTORY_DIRECTORY=`getpathname hist`
-HISTORY_FILE_SELECTION=`pwd`/oclc2.history.file.lst
-CANCEL_FLEX_OCLC_FILE=`pwd`/oclc2.flexkeys.OCLCnumber.lst
-UNFOUND_FLEXKEYS=`pwd`/oclc2.unfound.flexkeys.lst
-CANCEL_DIFF_FILE=`pwd`/oclc2.diff.lst
+CANCELS_HISTORY_FILE_SELECTION=`pwd`/oclc2.cancels.history.file.lst
+CANCELS_FLEX_OCLC_FILE=`pwd`/oclc2.cancels.flexkeys.OCLCnumber.lst
+CANCELS_UNFOUND_FLEXKEYS=`pwd`/oclc2.cancels.unfound.flexkeys.lst
+CANCELS_DIFF_FILE=`pwd`/oclc2.cancels.diff.lst
 ERROR_LOG=`pwd`/err.log
-FINAL_CANCEL_FLAT_FILE=`pwd`/oclc2.final.flat
+CANCELS_FINAL_FLAT_FILE=`pwd`/oclc2.cancels.final.flat
 ### TODO: check spec to find out what optimal name is.
-FINAL_CANCEL_MARC_FILE=`pwd`/oclc2.final.mrc
+CANCELS_FINAL_MARC_FILE=`pwd`/oclc2.cancels.final.mrc
 ### Variables specially for 'mixed' projects.
 NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
 NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
 MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
 ### TODO: check spec to find out what optimal name is.
-FINAL_MIXED_MARC_FILE=`pwd`/oclc2.mixed.mrc ##### Rename this file for submission.
+MIXED_FINAL_MARC_FILE=`pwd`/oclc2.mixed.mrc ##### Rename this file for submission.
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
@@ -103,13 +103,13 @@ printFlatMARC()
 		printf "* warning no OCLC number found in record %s, skipping.\n" $record >&2
 		return 1
 	fi
-	echo "*** DOCUMENT BOUNDARY ***" >>$FINAL_CANCEL_FLAT_FILE
-	echo "FORM=MARC" >>$FINAL_CANCEL_FLAT_FILE
-	echo ".000. |aamI 0d" >>$FINAL_CANCEL_FLAT_FILE
-	echo ".001. |a$flexKey"  >>$FINAL_CANCEL_FLAT_FILE
-	echo ".008. |a"$date"nuuuu    xx            000 u und u" >>$FINAL_CANCEL_FLAT_FILE
-	echo ".035.   |a$oclcNumber"  >>$FINAL_CANCEL_FLAT_FILE # like (OCoLC)32013207
-	echo ".852.   |aCNEDM"   >>$FINAL_CANCEL_FLAT_FILE
+	echo "*** DOCUMENT BOUNDARY ***" >>$CANCELS_FINAL_FLAT_FILE
+	echo "FORM=MARC" >>$CANCELS_FINAL_FLAT_FILE
+	echo ".000. |aamI 0d" >>$CANCELS_FINAL_FLAT_FILE
+	echo ".001. |a$flexKey"  >>$CANCELS_FINAL_FLAT_FILE
+	echo ".008. |a"$date"nuuuu    xx            000 u und u" >>$CANCELS_FINAL_FLAT_FILE
+	echo ".035.   |a$oclcNumber"  >>$CANCELS_FINAL_FLAT_FILE # like (OCoLC)32013207
+	echo ".852.   |aCNEDM"   >>$CANCELS_FINAL_FLAT_FILE
 	return 0
 }
 
@@ -127,20 +127,20 @@ run_cancels()
 	# continue to output until DATE_TODAY is found.
 	printf "compiling list of files to search %s and %s\n" $start_date $end_date >&2
 	# The test server shows that if we don't have an initial file name match for -X, -Y -M fail.
-	ls $HISTORY_DIRECTORY | egrep -e "hist(.Z)?$" | pipe.pl -C"c0:ge$start_date" | pipe.pl -C"c0:le$end_date"  >$HISTORY_FILE_SELECTION
+	ls $HISTORY_DIRECTORY | egrep -e "hist(.Z)?$" | pipe.pl -C"c0:ge$start_date" | pipe.pl -C"c0:le$end_date"  >$CANCELS_HISTORY_FILE_SELECTION
 	# Read in the list of history files from $HIST_DIR one-per-line (single string per line)
-	for h_file in $(cat $HISTORY_FILE_SELECTION |tr "\n" " ")
+	for h_file in $(cat $CANCELS_HISTORY_FILE_SELECTION |tr "\n" " ")
 	do
 		# Search the arg list of log files for entries of remove item (FV) and remove title option (NOY).
 		printf "searching history file %s/%s for deleted titles.\n" $HISTORY_DIRECTORY $h_file >&2
 		# E201405271803190011R ^S75FVFFADMIN^FEEPLMNA^FcNONE^NQ31221079015892^NOY^NSEPLJPL^IUa554837^tJ554837^aA(OCoLC)56729751^^O00099
 		# Extract the cat key and Flex key from the history logs.
 		if [ -s "$HISTORY_DIRECTORY/$h_file" ]; then
-			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVFF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>$CANCEL_FLEX_OCLC_FILE >/dev/null
+			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		else
 			local this_month=$(echo $h_file | pipe.pl -m'c0:###########_') # remove the .Z for this month.
 			if [ -s "$HISTORY_DIRECTORY/$this_month" ]; then
-				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVFF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>$CANCEL_FLEX_OCLC_FILE >/dev/null
+				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>$CANCELS_FLEX_OCLC_FILE >/dev/null
 			else
 				printf "omitting %s\n" $h_file
 			fi
@@ -149,40 +149,40 @@ run_cancels()
 	# Now we should have a file like this.
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
-	if [ -s "$CANCEL_FLEX_OCLC_FILE" ]; then
-		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >tmp.$$
-		mv tmp.$$ $CANCEL_FLEX_OCLC_FILE
+	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
+		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >tmp.$$
+		mv tmp.$$ $CANCELS_FLEX_OCLC_FILE
 		# Should now look like this.
 		# a1870593|ocm71780540
 		# LSC2923203|(OCoLC)932576987
 		# Pass these Flex keys to selcatalog and collect the error 111. 
 		# These are truely removed titles - not just removed items from 
 		# a title, or a title that has been replaced.
-		cat $CANCEL_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$UNFOUND_FLEXKEYS
+		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$CANCELS_UNFOUND_FLEXKEYS
 		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
 		# Snag the flex key and save it then diff.pl to get the canonical list of missing flex keys.
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
-		cat $UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
-		mv tmp.$$ $UNFOUND_FLEXKEYS
-		echo "echo \"$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE\" | diff.pl -ec0 -fc0 -mc1"
-		echo "$UNFOUND_FLEXKEYS and $CANCEL_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCEL_DIFF_FILE
+		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
+		mv tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
+		echo "echo \"$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE\" | diff.pl -ec0 -fc0 -mc1"
+		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCELS_DIFF_FILE
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
 		# If one pre-exists we will delete it now so we can just keep appending in the loop.
-		if [[ -s "$FINAL_CANCEL_FLAT_FILE" ]]; then
-			rm $FINAL_CANCEL_FLAT_FILE
+		if [[ -s "$CANCELS_FINAL_FLAT_FILE" ]]; then
+			rm $CANCELS_FINAL_FLAT_FILE
 		fi
 		while read -r file_line
 		do
 			if ! printFlatMARC $file_line
 			then
-				printf "** error '%s' malformed.\n" $CANCEL_DIFF_FILE >&2
+				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
 				exit 1
 			fi
-		done <$CANCEL_DIFF_FILE
+		done <$CANCELS_DIFF_FILE
 		# Now to make the MARC output from the flat file.
 		printf "creating marc file.\n" >&2
-		cat $FINAL_CANCEL_FLAT_FILE | flatskip -aMARC -if -om > $FINAL_CANCEL_MARC_FILE 2>>$ERROR_LOG
+		cat $CANCELS_FINAL_FLAT_FILE | flatskip -aMARC -if -om > $CANCELS_FINAL_MARC_FILE 2>>$ERROR_LOG
 	fi
 	return 0
 }
@@ -192,8 +192,8 @@ run_mixed()
 {
 	get_password
 	printf ">>>%s\n" $PASSWORD ### TEST
-	printf "running mexed from %s to %s\n" $START_DATE $END_DATE >&2
-	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC >tmp.$$
+	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
+	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >tmp.$$
 	# select all the records that were created since the start date.
 	printf "adding keys that were created since '%s'\n" $START_DATE >&2
 	cat tmp.$$ | selcatalog -iC -oC -p">$START_DATE" > $MIXED_CATKEYS_FILE 2>>$ERROR_LOG
@@ -202,7 +202,36 @@ run_mixed()
 	cat tmp.$$ | selcatalog -iC -oC -r">$START_DATE" >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	cat $MIXED_CATKEYS_FILE | sort | uniq >tmp.$$
 	mv tmp.$$ $MIXED_CATKEYS_FILE
-	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om > $FINAL_MIXED_MARC_FILE 2>>$APILogfilename
+	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om > $MIXED_FINAL_MARC_FILE 2>>$APILogfilename
+	return 0
+}
+# Cleans up temp files after process run.
+# param:  none.
+# return: 0
+clean_mixed()
+{
+	if [ -s "$MIXED_CATKEYS_FILE" ]; then
+		rm $MIXED_CATKEYS_FILE
+	fi
+	return 0
+}
+# Cleans up temp files after process run.
+# param:  none.
+# return: 0
+clean_cancels()
+{
+	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
+		rm $CANCELS_HISTORY_FILE_SELECTION
+	fi
+	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
+		rm $CANCELS_FLEX_OCLC_FILE
+	fi
+	if [ -s "$CANCELS_UNFOUND_FLEXKEYS" ]; then
+		rm $CANCELS_UNFOUND_FLEXKEYS
+	fi
+	if [ -s "$CANCELS_DIFF_FILE" ]; then
+		rm $CANCELS_DIFF_FILE
+	fi
 	return 0
 }
 # Ask if for the date if user using no args.
@@ -266,15 +295,19 @@ if [ $# -eq 0 ] ; then
 		[cC])
 			ask_mod_date
 			run_cancels
+			# clean_cancels
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
+			# clean_mixed
 			;;
 		[bB])
 			ask_mod_date
 			run_cancels
 			run_mixed
+			# clean_cancels
+			# clean_mixed
 			;;
 		[eE])
 			printf "ok, exiting\n" >&2
@@ -292,15 +325,19 @@ elif [ $# -eq 1 ]; then # 1 param or 2.
 		[cC])
 			ask_mod_date
 			run_cancels
+			# clean_cancels
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
+			# clean_mixed
 			;;
 		[bB])
 			ask_mod_date
 			run_cancels
 			run_mixed
+			# clean_cancels
+			# clean_mixed
 			;;
 		[eE])
 			printf "ok, exiting.\n" >&2
