@@ -58,8 +58,9 @@ MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
 # name unique
 COLLECTION_ID=1023505
 SYMBOL=cnedm
-N_CANCELS=`date +%H%M%S`0
-N_MIXED=`date +%H%M%S`1
+# These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
+N_CANCELS=`date +%Y%m%d`0
+N_MIXED=`date +%Y%m%d`1
 CANCELS_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
 MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
