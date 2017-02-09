@@ -48,14 +48,20 @@ CANCELS_UNFOUND_FLEXKEYS=`pwd`/oclc2.cancels.unfound.flexkeys.lst
 CANCELS_DIFF_FILE=`pwd`/oclc2.cancels.diff.lst
 ERROR_LOG=`pwd`/err.log
 CANCELS_FINAL_FLAT_FILE=`pwd`/oclc2.cancels.final.flat
-### TODO: check spec to find out what optimal name is.
-CANCELS_FINAL_MARC_FILE=`pwd`/oclc2.cancels.final.mrc
 ### Variables specially for 'mixed' projects.
 NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
 NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
 MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
-### TODO: check spec to find out what optimal name is.
-MIXED_FINAL_MARC_FILE=`pwd`/oclc2.mixed.mrc ##### Rename this file for submission.
+### Submission file names.
+# collectionid.symbol.bibholdings.n.mrc where ‘collectionid’ is the data sync collection
+# ID number; ‘symbol’ is escaped as per the login; ‘n’ is a number to make the file
+# name unique
+COLLECTION_ID=1023505
+SYMBOL=cnedm
+N_CANCELS=`date +%H%M%S`0
+N_MIXED=`date +%H%M%S`1
+CANCELS_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
+MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
@@ -69,7 +75,6 @@ fi
 ### exit the script.
 
 ################### Functions.
-
 # Reads the password file for the SFTP site.
 get_password()
 {
@@ -117,7 +122,7 @@ printFlatMARC()
 run_cancels()
 {
 	get_password
-	printf ">>>%s\n" $PASSWORD ### TEST
+	# printf ">>>%s\n" $PASSWORD ### TEST
 	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
 	local start_date=$(echo $START_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
 	local end_date=$(echo $END_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
@@ -191,18 +196,18 @@ run_cancels()
 run_mixed()
 {
 	get_password
-	printf ">>>%s\n" $PASSWORD ### TEST
+	# printf ">>>%s\n" $PASSWORD ### TEST
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
 	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >tmp.$$
-	# select all the records that were created since the start date.
+	## select all the records that were created since the start date.
 	printf "adding keys that were created since '%s'\n" $START_DATE >&2
-	cat tmp.$$ | selcatalog -iC -oC -p">$START_DATE" > $MIXED_CATKEYS_FILE 2>>$ERROR_LOG
-	# Now the modified records.
+	cat tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	## Now the modified records.
 	printf "adding keys that were modified since '%s'\n" $START_DATE >&2
-	cat tmp.$$ | selcatalog -iC -oC -r">$START_DATE" >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	cat tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	cat $MIXED_CATKEYS_FILE | sort | uniq >tmp.$$
 	mv tmp.$$ $MIXED_CATKEYS_FILE
-	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om > $MIXED_FINAL_MARC_FILE 2>>$APILogfilename
+	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$ERROR_LOG
 	return 0
 }
 # Cleans up temp files after process run.
@@ -295,19 +300,19 @@ if [ $# -eq 0 ] ; then
 		[cC])
 			ask_mod_date
 			run_cancels
-			# clean_cancels
+			clean_cancels
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
-			# clean_mixed
+			clean_mixed
 			;;
 		[bB])
 			ask_mod_date
 			run_cancels
 			run_mixed
-			# clean_cancels
-			# clean_mixed
+			clean_cancels
+			clean_mixed
 			;;
 		[eE])
 			printf "ok, exiting\n" >&2
@@ -325,19 +330,19 @@ elif [ $# -eq 1 ]; then # 1 param or 2.
 		[cC])
 			ask_mod_date
 			run_cancels
-			# clean_cancels
+			clean_cancels
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
-			# clean_mixed
+			clean_mixed
 			;;
 		[bB])
 			ask_mod_date
 			run_cancels
 			run_mixed
-			# clean_cancels
-			# clean_mixed
+			clean_cancels
+			clean_mixed
 			;;
 		[eE])
 			printf "ok, exiting.\n" >&2
@@ -354,6 +359,7 @@ else  # more than 2 arguments suggests user may not be familiar with this applic
 	show_usage
 fi
 # That is for all users, but on update we just want the user since the last time we did this.
+### TODO: after testing uncomment this line.
 # echo "$DATE_TODAY" > `pwd`/$DATE_FILE ### Commented out so we can test without a complicated reset.
 printf "done\n\n" >&2
 exit 0
