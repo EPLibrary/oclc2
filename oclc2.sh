@@ -48,7 +48,14 @@ UNFOUND_FLEXKEYS=`pwd`/oclc2.unfound.flexkeys.lst
 CANCEL_DIFF_FILE=`pwd`/oclc2.diff.lst
 ERROR_LOG=`pwd`/err.log
 FINAL_CANCEL_FLAT_FILE=`pwd`/oclc2.final.flat
+### TODO: check spec to find out what optimal name is.
 FINAL_CANCEL_MARC_FILE=`pwd`/oclc2.final.mrc
+### Variables specially for 'mixed' projects.
+NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
+NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
+MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
+### TODO: check spec to find out what optimal name is.
+FINAL_MIXED_MARC_FILE=`pwd`/oclc2.mixed.mrc ##### Rename this file for submission.
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
@@ -80,7 +87,7 @@ get_password()
 
 # Outputs a well-formed flat MARC record of the argument record and date string.
 # This subroutine is used in the Cancels process.
-# param:  The record is a flex key and oclcNumber separated by a pipe: AAN-1945|(OCoLC)3329882|
+# param:  The record is a flex key and oclcNumber separated by a pipe: 'AAN-1945|(OCoLC)3329882'
 # output: flat MARC record as a string.
 printFlatMARC()
 {
@@ -185,8 +192,17 @@ run_mixed()
 {
 	get_password
 	printf ">>>%s\n" $PASSWORD ### TEST
-	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
-	printf "running mixed...\n" >&2
+	printf "running mexed from %s to %s\n" $START_DATE $END_DATE >&2
+	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC >tmp.$$
+	# select all the records that were created since the start date.
+	printf "adding keys that were created since '%s'\n" $START_DATE >&2
+	cat tmp.$$ | selcatalog -iC -oC -p">$START_DATE" > $MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	# Now the modified records.
+	printf "adding keys that were modified since '%s'\n" $START_DATE >&2
+	cat tmp.$$ | selcatalog -iC -oC -r">$START_DATE" >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	cat $MIXED_CATKEYS_FILE | sort | uniq >tmp.$$
+	mv tmp.$$ $MIXED_CATKEYS_FILE
+	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om > $FINAL_MIXED_MARC_FILE 2>>$APILogfilename
 	return 0
 }
 # Ask if for the date if user using no args.
@@ -271,15 +287,18 @@ if [ $# -eq 0 ] ; then
 			show_usage
 			;;
 	esac
-elif [ $# -ge 1 ]; then # 1 param or 2.
+elif [ $# -eq 1 ]; then # 1 param or 2.
 	case "$1" in
 		[cC])
+			ask_mod_date
 			run_cancels
 			;;
 		[mM])
+			ask_mod_date
 			run_mixed
 			;;
 		[bB])
+			ask_mod_date
 			run_cancels
 			run_mixed
 			;;
