@@ -34,8 +34,6 @@
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
 VERSION=0.0
-PASSWORD_FILE=`pwd`/oclc2.password.txt
-PASSWORD=''
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
@@ -74,23 +72,6 @@ fi
 ### modifications, or 'cancels', indicating to upload items deleted from the catalog during
 ### the specified time frame. The other accepted command is 'exit', which will surprisingly
 ### exit the script.
-
-################### Functions.
-# Reads the password file for the SFTP site.
-get_password()
-{
-	# Tests, then reads the password file which is expected to be in the current working directory.
-	if [ ! -s "$PASSWORD_FILE" ]; then
-		printf "** error unable to SFTP results becaues I can't find the password file %s.\n" $PASSWORD_FILE >&2
-		exit 1
-	fi
-	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -Gc0:^# -L-1)
-	if [ ! "$PASSWORD" ]; then
-		printf "*** failed to read password file.\n" >&2
-		exit 1
-	fi
-}
-
 # Outputs a well-formed flat MARC record of the argument record and date string.
 # This subroutine is used in the Cancels process.
 # param:  The record is a flex key and oclcNumber separated by a pipe: 'AAN-1945|(OCoLC)3329882'
@@ -122,8 +103,6 @@ printFlatMARC()
 # Collects all the deleted records from history files.
 run_cancels()
 {
-	get_password
-	# printf ">>>%s\n" $PASSWORD ### TEST
 	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
 	local start_date=$(echo $START_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
 	local end_date=$(echo $END_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
@@ -196,8 +175,6 @@ run_cancels()
 # Collects all the bib records that were added or modified since the last time it was run.
 run_mixed()
 {
-	get_password
-	# printf ">>>%s\n" $PASSWORD ### TEST
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
 	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >tmp.$$
 	## select all the records that were created since the start date.
