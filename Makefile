@@ -29,7 +29,7 @@
 PRODUCTION_SERVER=eplapp.library.ualberta.ca
 TEST_SERVER=edpl-t.library.ualberta.ca
 USER=sirsi
-REMOTE=~/Unicorn/EPLwork/anisbet/
+REMOTE=~/Unicorn/EPLwork/cronjobscripts/OCLC/
 LOCAL=~/projects/oclc2/
 APP=oclc2.sh
 
