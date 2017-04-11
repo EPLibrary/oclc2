@@ -86,6 +86,7 @@ fi
 # This subroutine is used in the Cancels process.
 # param:  The record is a flex key and oclcNumber separated by a pipe: 'AAN-1945|(OCoLC)3329882'
 # output: flat MARC record as a string.
+# return: always returns 0.
 printFlatMARC()
 {
 	# the date in 'yymmdd' format. Example: 120831
@@ -111,6 +112,8 @@ printFlatMARC()
 }
 
 # Collects all the deleted records from history files.
+# param: none
+# return: always returns 0.
 run_cancels()
 {
 	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
@@ -184,6 +187,8 @@ run_cancels()
 }
 
 # Collects all the bib records that were added or modified since the last time it was run.
+# param: none
+# return: always returns 0.
 run_mixed()
 {
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
@@ -204,9 +209,9 @@ run_mixed()
 # return: 0
 clean_mixed()
 {
-	# if [ -s "$MIXED_CATKEYS_FILE" ]; then
-		# rm $MIXED_CATKEYS_FILE
-	# fi
+	if [ -s "$MIXED_CATKEYS_FILE" ]; then
+		rm $MIXED_CATKEYS_FILE
+	fi
 	return 0
 }
 # Cleans up temp files after process run.
@@ -225,6 +230,9 @@ clean_cancels()
 	fi
 	if [ -s "$CANCELS_DIFF_FILE" ]; then
 		rm $CANCELS_DIFF_FILE
+	fi
+	if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
+		rm $CANCELS_FINAL_FLAT_FILE
 	fi
 	return 0
 }
@@ -293,20 +301,17 @@ if [ $# -eq 0 ] ; then
 	clean_cancels
 	run_mixed
 	clean_mixed
-	echo $END_DATE >> $DATE_FILE
 elif [ $# -eq 1 ]; then # 1 param or 2.
 	case "$1" in
 		[cC])
 			ask_mod_date
 			run_cancels
 			clean_cancels
-			echo $END_DATE >> $DATE_FILE
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
 			clean_mixed
-			echo $END_DATE >> $DATE_FILE
 			;;
 		[bB])
 			ask_mod_date
@@ -314,7 +319,6 @@ elif [ $# -eq 1 ]; then # 1 param or 2.
 			clean_cancels
 			run_mixed
 			clean_mixed
-			echo $END_DATE >> $DATE_FILE
 			;;
 		*)
 			printf "** error unsupported option '%s'.\n" $1 >&2
@@ -325,8 +329,8 @@ else  # more than 2 arguments suggests user may not be familiar with this applic
 	show_usage
 fi
 # That is for all users, but on update we just want the user since the last time we did this.
-### TODO: after testing uncomment this line.
-# echo "$DATE_TODAY" > `pwd`/$DATE_FILE ### Commented out so we can test without a complicated reset.
+# Commented out so we can test without a complicated reset.
+echo $END_DATE >> $DATE_FILE 
 printf "done\n\n" >&2
 exit 0
 # EOF
