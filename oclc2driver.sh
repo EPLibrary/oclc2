@@ -56,7 +56,7 @@ get_password()
 get_password
 printf ">>>%s\n" $PASSWORD ### TEST
 printf `date` >&2 >$HOME/load.log
-# scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/ #### TODO: FINISH ME.
+# scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC  #### TODO: FINISH ME.
 printf "scp data from EPLAPP" >&2 >> $HOME/load.log
 if [ -s $HOME/$FILE ]
 then

@@ -75,11 +75,12 @@ MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 # We save a file with today's date, and then use that with -f on seluser.
 DATE_FILE=`pwd`/oclc2.last.run
 if [[ -s "$DATE_FILE" ]]; then
+	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
 fi
 ### The script expects to receive commands of either 'mixed', meaning all additions and
 ### modifications, or 'cancels', indicating to upload items deleted from the catalog during
-### the specified time frame. The other accepted command is 'exit', which will surprisingly
+### the specified time frame. The other accepted command is 'exit', which will, not surprisingly,
 ### exit the script.
 # Outputs a well-formed flat MARC record of the argument record and date string.
 # This subroutine is used in the Cancels process.
@@ -130,11 +131,13 @@ run_cancels()
 		# E201405271803190011R ^S75FVFFADMIN^FEEPLMNA^FcNONE^NQ31221079015892^NOY^NSEPLJPL^IUa554837^tJ554837^aA(OCoLC)56729751^^O00099
 		# Extract the cat key and Flex key from the history logs.
 		if [ -s "$HISTORY_DIRECTORY/$h_file" ]; then
-			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>$CANCELS_FLEX_OCLC_FILE >/dev/null
+			# Using grep initially is faster then let pipe convert '^' to '|', and grep any field with IU or aA and
+			# output just that field.
+			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		else
 			local this_month=$(echo $h_file | pipe.pl -m'c0:###########_') # remove the .Z for this month.
 			if [ -s "$HISTORY_DIRECTORY/$this_month" ]; then
-				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>$CANCELS_FLEX_OCLC_FILE >/dev/null
+				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 			else
 				printf "omitting %s\n" $h_file
 			fi
@@ -158,7 +161,6 @@ run_cancels()
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
 		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
 		mv tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
-		echo "echo \"$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE\" | diff.pl -ec0 -fc0 -mc1"
 		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCELS_DIFF_FILE
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
@@ -202,9 +204,9 @@ run_mixed()
 # return: 0
 clean_mixed()
 {
-	if [ -s "$MIXED_CATKEYS_FILE" ]; then
-		rm $MIXED_CATKEYS_FILE
-	fi
+	# if [ -s "$MIXED_CATKEYS_FILE" ]; then
+		# rm $MIXED_CATKEYS_FILE
+	# fi
 	return 0
 }
 # Cleans up temp files after process run.
@@ -252,27 +254,33 @@ ask_mod_date()
 # return: exits with status 99
 show_usage()
 {
-	printf "Usage: $0 collects and uploads DataSync Collections bib record metadata.\n" >&2
-	printf "  Can be run with 0, arguments and you will be prompted for a type of\n" >&2
-	printf "  action like mixed or cancels and the default date of %s will be used.\n" $START_DATE >&2
-	printf "  Example: $0 \n"                              >&2
-	printf "  \n"                              >&2
-	printf "  Using a single param controls report type, but default date will be %s.\n" $START_DATE >&2
-	printf "  Example: $0 [c|m|e|help|x]\n"             >&2
-	printf "    * c - Run cancels.\n"             >&2
-	printf "    * m - Run mixed project.\n"             >&2
-	printf "    * b - Run both cancel and mixed projects.\n"             >&2
-	printf "    * e - Exit, last run date is updated.\n"             >&2
-	printf "    * x - Show usage.\n"             >&2
-	printf "  \n"             >&2
+	printf "Usage: $0 [c|m|b[YYYYMMDD]][x]\n"                >&2
+	printf "  $0 collects modified (created or modified) and/or deleted bibliograhic\n" >&2
+	printf "  metadata to OCLC's DataSync Collections. This script does not upload to OCLC.\n" >&2
+	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.\n" >&2
+	printf "  \n" 
+	printf "  If run with no arguments both mixed and cancels will be run from the last run date\n" >&2
+	printf "  or for the period covering the last 7 calendar days, if the last run date file could not be found.\n" >&2
+	printf "  Example: $0 \n"                                >&2
+	printf "  \n"                                            >&2
+	printf "  Using a single param controls report type, but default date will be %s and\n" $START_DATE >&2
+	printf "  you will be asked to confirm the date before starting.\n" >&2
+	printf "  Example: $0 [c|m|b][x]\n"                      >&2
+	printf "    * c - Run cancels report.\n"                 >&2
+	printf "    * m - Run mixed project report.\n"           >&2
+	printf "    * b - Run both cancel and mixed projects (default action).\n" >&2
+	printf "    * x - Show usage, then exit.\n"              >&2
+	printf "  \n"                                            >&2
 	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
-	printf "  Example: $0 [c|m|e|help|x] [YYYYMMDD|help]\n"  >&2
-	printf "  (See above for explaination of flags).\n"  >&2
-	printf "  \n" >&2
+	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
+	printf "  (See above for explaination of flags). The date value is not checked and\n" >&2
+	printf "  will throw an error if not a valid ANSI date (YYYMMDD format).\n" >&2
+	printf "  \n"                                            >&2
 	printf "  Once the report is done it will save today's date into a file $LAST_RUN_DATE and use\n" >&2
-	printf "  this date as the last milestone submission. If the file can't be found the last submission\n" >&2
-	printf "  date defaults to $START_DATE and a new file with $TODAY will be created.\n" >&2
-	printf "  Note that all dates must be in ANSI format (YYYYMMDD).\n" >&2
+	printf "  this date as the last milestone for the next submission. If the file can't be found\n" >&2
+	printf "  the last submission date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
+	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the line,\n" >&2
+	printf "  and only the last listed, non-commented '#' line value will be used when selecting records.\n" >&2
 	exit 99
 }
 if [ $# -eq 2 ]; then
@@ -281,64 +289,35 @@ if [ $# -eq 2 ]; then
 fi
 # Allow the user to enter a specific operation if one isn't supplied on the command line.
 if [ $# -eq 0 ] ; then
-	printf "Enter desired operation: [c]ancels, [m]ixed, [b]oth, or [e]xit: [exit]" >&2
-	read operation
-	case "$operation" in
-		[cC])
-			ask_mod_date
-			run_cancels
-			clean_cancels
-			;;
-		[mM])
-			ask_mod_date
-			run_mixed
-			clean_mixed
-			;;
-		[bB])
-			ask_mod_date
-			run_cancels
-			run_mixed
-			clean_cancels
-			clean_mixed
-			;;
-		[eE])
-			printf "ok, exiting\n" >&2
-			;;
-		[helpxX])
-			show_usage
-			;;
-		*)
-			printf "** error don't understand '%s'.\n" $1 >&2
-			show_usage
-			;;
-	esac
+	run_cancels
+	clean_cancels
+	run_mixed
+	clean_mixed
+	echo $END_DATE >> $DATE_FILE
 elif [ $# -eq 1 ]; then # 1 param or 2.
 	case "$1" in
 		[cC])
 			ask_mod_date
 			run_cancels
 			clean_cancels
+			echo $END_DATE >> $DATE_FILE
 			;;
 		[mM])
 			ask_mod_date
 			run_mixed
 			clean_mixed
+			echo $END_DATE >> $DATE_FILE
 			;;
 		[bB])
 			ask_mod_date
 			run_cancels
-			run_mixed
 			clean_cancels
+			run_mixed
 			clean_mixed
-			;;
-		[eE])
-			printf "ok, exiting.\n" >&2
-			;;
-		[helpxX])
-			show_usage
+			echo $END_DATE >> $DATE_FILE
 			;;
 		*)
-			printf "** error don't understand '%s'.\n" $1 >&2
+			printf "** error unsupported option '%s'.\n" $1 >&2
 			show_usage
 			;;
 	esac
