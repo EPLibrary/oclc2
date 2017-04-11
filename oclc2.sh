@@ -268,7 +268,8 @@ show_usage()
 	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.\n" >&2
 	printf "  \n" 
 	printf "  If run with no arguments both mixed and cancels will be run from the last run date\n" >&2
-	printf "  or for the period covering the last 7 calendar days, if the last run date file could not be found.\n" >&2
+	printf "  or for the period covering the last 7 calendar days if there's no last-run-date file" >&2
+	printf "  in the working directory.\n"                   >&2
 	printf "  Example: $0 \n"                                >&2
 	printf "  \n"                                            >&2
 	printf "  Using a single param controls report type, but default date will be %s and\n" $START_DATE >&2
@@ -289,6 +290,7 @@ show_usage()
 	printf "  the last submission date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
 	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the line,\n" >&2
 	printf "  and only the last listed, non-commented '#' line value will be used when selecting records.\n" >&2
+	printf "  The last-run-date file is not essential and will be recreated if it is deleted.\n" >&2
 	exit 99
 }
 if [ $# -eq 2 ]; then
