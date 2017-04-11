@@ -26,7 +26,16 @@
 #          0.0 - Dev.
 #
 ####################################################
-
+# This script is the replacement is to accomodate OCLC's DataSync Collections 
+# which is a replacement for BatchLoad. Each scheduled cycle the script will 
+# collect all the modified (and created), or deleted records and upload the records
+# as brief MARC records to the designated SFTP site in Toronto.
+#
+# By default the script looks at changes made within the last seven days but 
+# checks a file `pwd`/oclc2.last.run, and adjusts its selection date based on the 
+# ANSI date found there. If you want just the last 7 days, delete the file. It 
+# will be created again with today's date. If you run the script again in 2 days
+# only altered records from the last 2 days will be noted and uploaded.
 # Environment setup required by cron to run script because its daemon runs
 # without assuming any environment settings and we need to use sirsi's.
 ###############################################
