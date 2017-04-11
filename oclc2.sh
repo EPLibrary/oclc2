@@ -264,7 +264,7 @@ show_usage()
 {
 	printf "Usage: $0 [c|m|b[YYYYMMDD]][x]\n"                >&2
 	printf "  $0 collects modified (created or modified) and/or deleted bibliograhic\n" >&2
-	printf "  metadata to OCLC's DataSync Collections. This script does not upload to OCLC.\n" >&2
+	printf "  metadata for OCLC's DataSync Collection service. This script does not upload to OCLC.\n" >&2
 	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.\n" >&2
 	printf "  \n" 
 	printf "  If run with no arguments both mixed and cancels will be run from the last run date\n" >&2
