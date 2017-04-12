@@ -221,21 +221,21 @@ clean_mixed()
 # return: 0
 clean_cancels()
 {
-	# if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
-		# rm $CANCELS_HISTORY_FILE_SELECTION
-	# fi
-	# if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
-		# rm $CANCELS_FLEX_OCLC_FILE
-	# fi
-	# if [ -s "$CANCELS_UNFOUND_FLEXKEYS" ]; then
-		# rm $CANCELS_UNFOUND_FLEXKEYS
-	# fi
-	# if [ -s "$CANCELS_DIFF_FILE" ]; then
-		# rm $CANCELS_DIFF_FILE
-	# fi
-	# if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
-		# rm $CANCELS_FINAL_FLAT_FILE
-	# fi
+	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
+		rm $CANCELS_HISTORY_FILE_SELECTION
+	fi
+	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
+		rm $CANCELS_FLEX_OCLC_FILE
+	fi
+	if [ -s "$CANCELS_UNFOUND_FLEXKEYS" ]; then
+		rm $CANCELS_UNFOUND_FLEXKEYS
+	fi
+	if [ -s "$CANCELS_DIFF_FILE" ]; then
+		rm $CANCELS_DIFF_FILE
+	fi
+	if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
+		rm $CANCELS_FINAL_FLAT_FILE
+	fi
 	return 0
 }
 # Ask if for the date if user using no args.
