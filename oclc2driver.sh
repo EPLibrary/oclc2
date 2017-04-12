@@ -30,6 +30,8 @@
 # OCLC · Training & Implementation Specialist-Spécialiste en formation & implantation, OCLC Canada
 # 9955 Chateauneuf, Suite 135, Brossard, Québec Canada J4Z 3V5
 # T +1-888-658-6583 / 450-656-8955
+## Note: there are no comments allowed in this file because the password may include a '#'. 
+##       The script will however read only the last line of the file
 SFTP_USER=cnedm
 SFTP_SERVER=scp-toronto.oclc.org
 REMOTE_DIR=/xfer/metacoll/in/bib
@@ -46,7 +48,7 @@ get_password()
 		printf "** error unable to SFTP results becaues I can't find the password file %s.\n" $PASSWORD_FILE >&2
 		exit 1
 	fi
-	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -Gc0:^# -L-1)
+	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -zc0 -L-1)
 	if [ ! "$PASSWORD" ]; then
 		printf "*** failed to read password file.\n" >&2
 		exit 1

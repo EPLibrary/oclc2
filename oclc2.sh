@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.3 - Tested on Production.
 #          0.0 - Dev.
 #
 ####################################################
