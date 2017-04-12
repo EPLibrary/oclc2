@@ -42,7 +42,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION=0.0
+VERSION=0.3
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
@@ -118,32 +118,28 @@ run_cancels()
 {
 	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
 	local start_date=$(echo $START_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
-	local end_date=$(echo $END_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
+	local end_date=$(echo $END_DATE | pipe.pl -mc0:#) # Year and month only or dates won't match file.
 	# To get the records of bibs that were deleted, we need to find history files since $start_date
 	# and grep out where records were deleted. Let's find those history files first.
 	# List all the files in the hist directory, start searching for the string $start_date and once found
 	# continue to output until DATE_TODAY is found.
-	printf "compiling list of files to search %s and %s\n" $start_date $end_date >&2
+	printf "compiling list of files to search %s to %s\n" $START_DATE $END_DATE >&2
 	# The test server shows that if we don't have an initial file name match for -X, -Y -M fail.
-	ls $HISTORY_DIRECTORY | egrep -e "hist(.Z)?$" | pipe.pl -C"c0:ge$start_date" | pipe.pl -C"c0:le$end_date"  >$CANCELS_HISTORY_FILE_SELECTION
+	ls $HISTORY_DIRECTORY | egrep -e "hist(\.Z)?$" | pipe.pl -C"c0:ge$start_date" | pipe.pl -C"c0:le$end_date"  >$CANCELS_HISTORY_FILE_SELECTION
 	# Read in the list of history files from $HIST_DIR one-per-line (single string per line)
-	for h_file in $(cat $CANCELS_HISTORY_FILE_SELECTION |tr "\n" " ")
+	for h_file in $(cat $CANCELS_HISTORY_FILE_SELECTION | tr "\n" " ")
 	do
 		# Search the arg list of log files for entries of remove item (FV) and remove title option (NOY).
 		printf "searching history file %s/%s for deleted titles.\n" $HISTORY_DIRECTORY $h_file >&2
 		# E201405271803190011R ^S75FVFFADMIN^FEEPLMNA^FcNONE^NQ31221079015892^NOY^NSEPLJPL^IUa554837^tJ554837^aA(OCoLC)56729751^^O00099
 		# Extract the cat key and Flex key from the history logs.
-		if [ -s "$HISTORY_DIRECTORY/$h_file" ]; then
-			# Using grep initially is faster then let pipe convert '^' to '|', and grep any field with IU or aA and
-			# output just that field.
-			zcat $HISTORY_DIRECTORY/$h_file | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
-		else
-			local this_month=$(echo $h_file | pipe.pl -m'c0:###########_') # remove the .Z for this month.
-			if [ -s "$HISTORY_DIRECTORY/$this_month" ]; then
-				cat $HISTORY_DIRECTORY/$this_month | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g'any:IU|aA' -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
-			else
-				printf "omitting %s\n" $h_file
-			fi
+		# Using grep initially is faster then let pipe convert '^' to '|', and grep any field with IU or aA and
+		# output just that field.
+		# First we can't zcat a regular file so when that breaks, use plain old cat.
+		# Note to self: zcat implies the '.Z' extension when it runs. 
+		if ! zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		then
+			cat "$HISTORY_DIRECTORY/$h_file" | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		fi
 	done
 	# Now we should have a file like this.
@@ -155,12 +151,11 @@ run_cancels()
 		# Should now look like this.
 		# a1870593|ocm71780540
 		# LSC2923203|(OCoLC)932576987
+		# Snag the flex key and save it then use diff.pl to get the canonical list of missing flex keys
+		# that is, all the flex keys (titles) that are no longer on the ILS.
 		# Pass these Flex keys to selcatalog and collect the error 111. 
-		# These are truely removed titles - not just removed items from 
-		# a title, or a title that has been replaced.
-		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$CANCELS_UNFOUND_FLEXKEYS
 		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
-		# Snag the flex key and save it then diff.pl to get the canonical list of missing flex keys.
+		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$CANCELS_UNFOUND_FLEXKEYS
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
 		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
 		mv tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
@@ -194,10 +189,10 @@ run_mixed()
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
 	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >tmp.$$
 	## select all the records that were created since the start date.
-	printf "adding keys that were created since '%s'\n" $START_DATE >&2
+	printf "adding keys that were created since %s.\n" $START_DATE >&2
 	cat tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	## Now the modified records.
-	printf "adding keys that were modified since '%s'\n" $START_DATE >&2
+	printf "adding keys that were modified since %s.\n" $START_DATE >&2
 	cat tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	cat $MIXED_CATKEYS_FILE | sort | uniq >tmp.$$
 	mv tmp.$$ $MIXED_CATKEYS_FILE
@@ -262,42 +257,45 @@ ask_mod_date()
 # return: exits with status 99
 show_usage()
 {
-	printf "Usage: $0 [c|m|b[YYYYMMDD]][x]\n"                >&2
+	printf "Usage: $0 [c|m|b[YYYYMMDD]]\n"                   >&2
 	printf "  $0 collects modified (created or modified) and/or deleted bibliograhic\n" >&2
 	printf "  metadata for OCLC's DataSync Collection service. This script does not upload to OCLC.\n" >&2
-	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.\n" >&2
-	printf "  \n" 
+	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.)\n" >&2
+	printf "  \n"                                            >&2
 	printf "  If run with no arguments both mixed and cancels will be run from the last run date\n" >&2
-	printf "  or for the period covering the last 7 calendar days if there's no last-run-date file" >&2
+	printf "  or for the period covering the last 7 calendar days if there's no last-run-date file\n" >&2
 	printf "  in the working directory.\n"                   >&2
 	printf "  Example: $0 \n"                                >&2
 	printf "  \n"                                            >&2
 	printf "  Using a single param controls report type, but default date will be %s and\n" $START_DATE >&2
 	printf "  you will be asked to confirm the date before starting.\n" >&2
-	printf "  Example: $0 [c|m|b][x]\n"                      >&2
+	printf "  Example: $0 [c|m|b]\n"                         >&2
 	printf "    * c - Run cancels report.\n"                 >&2
 	printf "    * m - Run mixed project report.\n"           >&2
 	printf "    * b - Run both cancel and mixed projects (default action).\n" >&2
-	printf "    * x - Show usage, then exit.\n"              >&2
 	printf "  \n"                                            >&2
 	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
 	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
 	printf "  (See above for explaination of flags). The date value is not checked and\n" >&2
 	printf "  will throw an error if not a valid ANSI date (YYYMMDD format).\n" >&2
 	printf "  \n"                                            >&2
-	printf "  Once the report is done it will save today's date into a file $LAST_RUN_DATE and use\n" >&2
-	printf "  this date as the last milestone for the next submission. If the file can't be found\n" >&2
+	printf "  Once the report is done it will save today's date into file\n  '%s'\n" $DATE_FILE >&2
+	printf "  and use this date as the last milestone for the next submission. If the file can't be found\n" >&2
 	printf "  the last submission date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
-	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the line,\n" >&2
-	printf "  and only the last listed, non-commented '#' line value will be used when selecting records.\n" >&2
-	printf "  The last-run-date file is not essential and will be recreated if it is deleted.\n" >&2
+	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the \n" >&2
+	printf "  last uncommented line. A comment line starts with '#'.\n" >&2
+	printf "  \n"                                            >&2
+	printf "  The last-run-date file is not essential and will be recreated if it is deleted, however\n" >&2
+	printf "  it is useful in showing the chronology of times the process has been run.\n" >&2
+	printf "  \n"                                            >&2
+	printf "  Version: %s\n" $VERSION                        >&2
 	exit 99
 }
 if [ $# -eq 2 ]; then
 	# The second value on the command line is supposed to be an ANSI date like YYYYMMDD.
 	START_DATE=$2
 fi
-# Allow the user to enter a specific operation if one isn't supplied on the command line.
+# Run all functions. This allows the process to be cronned and not require user input to run.
 if [ $# -eq 0 ] ; then
 	run_cancels
 	clean_cancels
