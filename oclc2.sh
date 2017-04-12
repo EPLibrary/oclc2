@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.4 - Bug fix for reading difference between compressed and uncompressed files.
 #          0.3 - Tested on Production.
 #          0.0 - Dev.
 #
@@ -43,7 +44,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION=0.3
+VERSION=0.4
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
@@ -138,11 +139,16 @@ run_cancels()
 		# output just that field.
 		# First we can't zcat a regular file so when that breaks, use plain old cat.
 		# Note to self: zcat implies the '.Z' extension when it runs. 
-		if ! zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
-		then
-			cat "$HISTORY_DIRECTORY/$h_file" | egrep -e "FVF" | egrep -e "NOY" | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
+		if [ ! -s "tmp.zcat.$$" ]; then
+			# zcat didn't find any results, maybe the file isn't compressed. Try cat instead.
+			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
 		fi
+		cat tmp.zcat.$$ | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		rm tmp.zcat.$$
 	done
+	local count=$(cat $CANCELS_FLEX_OCLC_FILE | wc -l)
+	printf "found %s \n" $count >&2
 	# Now we should have a file like this.
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
@@ -215,21 +221,21 @@ clean_mixed()
 # return: 0
 clean_cancels()
 {
-	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
-		rm $CANCELS_HISTORY_FILE_SELECTION
-	fi
-	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
-		rm $CANCELS_FLEX_OCLC_FILE
-	fi
-	if [ -s "$CANCELS_UNFOUND_FLEXKEYS" ]; then
-		rm $CANCELS_UNFOUND_FLEXKEYS
-	fi
-	if [ -s "$CANCELS_DIFF_FILE" ]; then
-		rm $CANCELS_DIFF_FILE
-	fi
-	if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
-		rm $CANCELS_FINAL_FLAT_FILE
-	fi
+	# if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
+		# rm $CANCELS_HISTORY_FILE_SELECTION
+	# fi
+	# if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
+		# rm $CANCELS_FLEX_OCLC_FILE
+	# fi
+	# if [ -s "$CANCELS_UNFOUND_FLEXKEYS" ]; then
+		# rm $CANCELS_UNFOUND_FLEXKEYS
+	# fi
+	# if [ -s "$CANCELS_DIFF_FILE" ]; then
+		# rm $CANCELS_DIFF_FILE
+	# fi
+	# if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
+		# rm $CANCELS_FINAL_FLAT_FILE
+	# fi
 	return 0
 }
 # Ask if for the date if user using no args.
