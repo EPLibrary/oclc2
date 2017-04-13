@@ -144,7 +144,12 @@ run_cancels()
 			# zcat didn't find any results, maybe the file isn't compressed. Try cat instead.
 			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
 		fi
-		cat tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		## before:
+		# 20170401|S44FVFFADMIN|FEEPLMNA|FcNONE|NQ31221105319052|NOY|NSEPLLHL|IUa1113832|tJ1113832|aA(OCoLC)640340037||O00102
+		printf "collecting all TCN and OCLC numbers.\n" >&2
+		cat tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" -U | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		## after:
+		# IUepl000002574|aA(OCoLC)759176932
 		rm tmp.zcat.$$
 	done
 	# Now we should have a file like this.
@@ -160,10 +165,14 @@ run_cancels()
 		# that is, all the flex keys (titles) that are no longer on the ILS.
 		# Pass these Flex keys to selcatalog and collect the error 111. 
 		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
-		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF 2>$CANCELS_UNFOUND_FLEXKEYS
+		# We aren't interested in the ones that are still in the catalog so send them to /dev/null.
+		printf "searching catalog for missing catalog keys.\n" >&2
+		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF >/dev/null 2>$CANCELS_UNFOUND_FLEXKEYS
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
 		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
 		mv tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
+		local count=$(cat $CANCELS_UNFOUND_FLEXKEYS | wc -l | pipe.pl -tc0)
+		printf "submission includes %s cancelled bib records.\n" $count >&2
 		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCELS_DIFF_FILE
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
