@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.5 - Cancels tested on Production.
 #          0.4 - Bug fix for reading difference between compressed and uncompressed files.
 #          0.3 - Tested on Production.
 #          0.0 - Dev.
@@ -44,7 +45,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION=0.4
+VERSION=0.5
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
