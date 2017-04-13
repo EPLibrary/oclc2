@@ -4,7 +4,7 @@
 # Copyright (c) Edmonton Public Library 2016-12-12
 #
 # Manages the distribution of oclc2.pl.
-#    Copyright (C) 2016  Andrew Nisbet
+#    Copyright (C) 2017  Andrew Nisbet
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

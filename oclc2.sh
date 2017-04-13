@@ -4,7 +4,7 @@
 # Bash shell script for project oclc2
 #
 # Collect and submit Data Sync Collections data for OCLC.
-#    Copyright (C) 2016  Andrew Nisbet
+#    Copyright (C) 2017  Andrew Nisbet
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -144,11 +144,9 @@ run_cancels()
 			# zcat didn't find any results, maybe the file isn't compressed. Try cat instead.
 			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
 		fi
-		cat tmp.zcat.$$ | pipe.pl -W'\^' -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		cat tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		rm tmp.zcat.$$
 	done
-	local count=$(cat $CANCELS_FLEX_OCLC_FILE | wc -l)
-	printf "found %s \n" $count >&2
 	# Now we should have a file like this.
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
