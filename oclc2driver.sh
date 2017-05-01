@@ -32,17 +32,17 @@
 # T +1-888-658-6583 / 450-656-8955
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
+export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
+export SHELL=/bin/sh
 export SFTP_USER=cnedm
 export SFTP_SERVER=scp-toronto.oclc.org
 export REMOTE_DIR=/xfer/metacoll/in/bib
-export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
-export SHELL=/bin/sh
 export HOME=/home/ilsdev/projects/oclc2
 export PASSWORD_FILE=$HOME/oclc2.password.txt
 PASSWORD=''
 
 # FILE='*.mrc'
-FILE='test_file_delete_me.mrc' ###### TODO: finish me.###### TODO: finish me.
+FILE='submission.tar' ###### TODO: finish me.###### TODO: finish me.
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -57,16 +57,16 @@ get_password()
 		printf "*** failed to read password file.\n" >&2 >> $HOME/load.log
 		exit 1
 	fi
-	printf "got file and read it %s.\n" $PASSWORD >&2 >> $HOME/load.log
 }
 ################ end Functions
 
 printf `date` >&2 >> $HOME/load.log
-# scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC  #### TODO: FINISH ME.
-printf "scp data from EPLAPP\n" >&2 >> $HOME/load.log
+scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE $HOME
+printf "scp '%s' from EPLAPP\n" $FILE >&2 >> $HOME/load.log
 if [ -f "$HOME/$FILE" ]
 then
 	cd $HOME
+	tar xvf $FILE
 	get_password
 	printf "sftp to %s...\n" $SFTP_SERVER >&2 >> $HOME/load.log
 	export SSHPASS="$PASSWORD"
@@ -77,12 +77,17 @@ then
 	# !
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !
    cd $REMOTE_DIR
-   put $HOME/$FILE
+   put $HOME/*.mrc
    bye
 !
 	if [[ $? ]]; then
 		printf "done sftp.\n" >&2 >> $HOME/load.log
-		# rm $HOME/$FILE
+		printf "removing tarball '%s'...\n" $HOME/$FILE >&2 >> $HOME/load.log
+		rm $HOME/$FILE
+		printf "removing tarball '%s' from EPLAPP...\n" $HOME/$FILE >&2 >> $HOME/load.log
+		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE" >&2 >> $HOME/load.log
+		printf "removing mrc files.\n" >&2 >> $HOME/load.log
+		rm *.mrc
 	else
 		printf "failed to sftp.\n" >&2 >> $HOME/load.log
 	fi

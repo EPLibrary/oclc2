@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.6 - Tarball all MARC files with standard name 'submission.tar'.
 #          0.5 - Cancels tested on Production.
 #          0.4 - Bug fix for reading difference between compressed and uncompressed files.
 #          0.3 - Tested on Production.
@@ -45,38 +46,40 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION=0.5
+export VERSION=0.6
+export SHELL=/bin/sh
 # default milestone 7 days ago.
-START_DATE=$(transdate -d-7)
+export START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
 # we will save the date last run as a zero-byte file.
-END_DATE=$(transdate -d-0)
-HISTORY_DIRECTORY=`getpathname hist`
-CANCELS_HISTORY_FILE_SELECTION=`pwd`/oclc2.cancels.history.file.lst
-CANCELS_FLEX_OCLC_FILE=`pwd`/oclc2.cancels.flexkeys.OCLCnumber.lst
-CANCELS_UNFOUND_FLEXKEYS=`pwd`/oclc2.cancels.unfound.flexkeys.lst
-CANCELS_DIFF_FILE=`pwd`/oclc2.cancels.diff.lst
-ERROR_LOG=`pwd`/err.log
-CANCELS_FINAL_FLAT_FILE=`pwd`/oclc2.cancels.final.flat
+export END_DATE=$(transdate -d-0)
+export HISTORY_DIRECTORY=`getpathname hist`
+export CANCELS_HISTORY_FILE_SELECTION=`pwd`/oclc2.cancels.history.file.lst
+export CANCELS_FLEX_OCLC_FILE=`pwd`/oclc2.cancels.flexkeys.OCLCnumber.lst
+export CANCELS_UNFOUND_FLEXKEYS=`pwd`/oclc2.cancels.unfound.flexkeys.lst
+export CANCELS_DIFF_FILE=`pwd`/oclc2.cancels.diff.lst
+export ERROR_LOG=`pwd`/err.log
+export CANCELS_FINAL_FLAT_FILE=`pwd`/oclc2.cancels.final.flat
 ### Variables specially for 'mixed' projects.
-NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
-NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
-MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
+export NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
+export NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
+export MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
 ### Submission file names.
 # collectionid.symbol.bibholdings.n.mrc where ‘collectionid’ is the data sync collection
 # ID number; ‘symbol’ is escaped as per the login; ‘n’ is a number to make the file
 # name unique
-COLLECTION_ID=1023505
-SYMBOL=cnedm
+export COLLECTION_ID=1023505
+export SYMBOL=cnedm
 # These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
-N_CANCELS=`date +%Y%m%d`0
-N_MIXED=`date +%Y%m%d`1
-CANCELS_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
-MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+export N_CANCELS=`date +%Y%m%d`0
+export N_MIXED=`date +%Y%m%d`1
+export CANCELS_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
+export MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+export SUBMISSION_TAR=`pwd`/submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
-DATE_FILE=`pwd`/oclc2.last.run
+export DATE_FILE=`pwd`/oclc2.last.run
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
@@ -216,9 +219,20 @@ run_mixed()
 }
 # Cleans up temp files after process run.
 # param:  none.
-# return: 0
+# return: 0 if everything worked according to plan, and 1 if the final marc file 
+#         couldn't be found.
 clean_mixed()
 {
+	if [ -s "$MIXED_FINAL_MARC_FILE" ]; then
+		if [ -s "$SUBMISSION_TAR" ]; then
+			tar uvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+		else
+			tar cvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+		fi
+	else
+		printf "MARC file: '%s' was not created.\n" $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+		return 1
+	fi
 	if [ -s "$MIXED_CATKEYS_FILE" ]; then
 		rm $MIXED_CATKEYS_FILE
 	fi
@@ -226,9 +240,20 @@ clean_mixed()
 }
 # Cleans up temp files after process run.
 # param:  none.
-# return: 0
+# return: 0 if everything worked according to plan, and 1 if the final marc file 
+#         couldn't be found.
 clean_cancels()
 {
+	if [ -s "$CANCELS_FINAL_MARC_FILE" ]; then
+		if [ -s "$SUBMISSION_TAR" ]; then
+			tar uvf $SUBMISSION_TAR $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+		else
+			tar cvf $SUBMISSION_TAR $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+		fi
+	else
+		printf "MARC file: '%s' was not created.\n" $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+		return 1
+	fi
 	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
 		rm $CANCELS_HISTORY_FILE_SELECTION
 	fi

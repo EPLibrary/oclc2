@@ -40,6 +40,17 @@ Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on
 and only the last listed, non-commented '#' line value will be used when selecting records.
 The last-run-date file is not essential and will be recreated if it is deleted.
 
+Workflow
+--------
+The oclc2.sh script runs from the ILS and is cron'ed. It creates a 'submission.tar' file that 
+contains the MARC files from each process that runs. There may be more than one MARC file if
+the cancels and mixed projects ran. There could also be multiple dates if the sister script
+'oclc2driver.sh' failed to run. No matter, the oclc2.sh will continue to accumulate the MARC
+files until 'oclc2driver.sh' removes the submission tarball.
+
+'oclc2driver.sh' is cron'ed on ilsdev1.epl.ca to run after 'oclc2.sh'. It coordinates the uploading
+of files to OCLC via SFTP, which can't be automated on either the Production or Test ILS.
+
 Product Description:
 Bash shell script written by Andrew Nisbet for Edmonton Public Library, distributable by the enclosed license.
 
