@@ -32,38 +32,43 @@
 # T +1-888-658-6583 / 450-656-8955
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
-SFTP_USER=cnedm
-SFTP_SERVER=scp-toronto.oclc.org
-REMOTE_DIR=/xfer/metacoll/in/bib
-PASSWORD_FILE=`pwd`/oclc2.password.txt
+export SFTP_USER=cnedm
+export SFTP_SERVER=scp-toronto.oclc.org
+export REMOTE_DIR=/xfer/metacoll/in/bib
+export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
+export SHELL=/bin/sh
+export HOME=/home/ilsdev/projects/oclc2
+export PASSWORD_FILE=$HOME/oclc2.password.txt
 PASSWORD=''
-HOME=/home/ilsdev/projects/oclc2
-FILE='' ###### TODO: finish me.
+
+# FILE='*.mrc'
+FILE='test_file_delete_me.mrc' ###### TODO: finish me.###### TODO: finish me.
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
 {
 	# Tests, then reads the password file which is expected to be in the current working directory.
 	if [ ! -s "$PASSWORD_FILE" ]; then
-		printf "** error unable to SFTP results becaues I can't find the password file %s.\n" $PASSWORD_FILE >&2
+		printf "** error unable to SFTP results becaues I can't find the password file %s.\n" $PASSWORD_FILE >&2 >> $HOME/load.log
 		exit 1
 	fi
 	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -zc0 -L-1)
 	if [ ! "$PASSWORD" ]; then
-		printf "*** failed to read password file.\n" >&2
+		printf "*** failed to read password file.\n" >&2 >> $HOME/load.log
 		exit 1
 	fi
+	printf "got file and read it %s.\n" $PASSWORD >&2 >> $HOME/load.log
 }
 ################ end Functions
-get_password
-printf ">>>%s\n" $PASSWORD ### TEST
-printf `date` >&2 >$HOME/load.log
+
+printf `date` >&2 >> $HOME/load.log
 # scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC  #### TODO: FINISH ME.
-printf "scp data from EPLAPP" >&2 >> $HOME/load.log
-if [ -s $HOME/$FILE ]
+printf "scp data from EPLAPP\n" >&2 >> $HOME/load.log
+if [ -f "$HOME/$FILE" ]
 then
 	cd $HOME
-	printf "sftp to %s..." $SFTP_SERVER >&2 >> $HOME/load.log
+	get_password
+	printf "sftp to %s...\n" $SFTP_SERVER >&2 >> $HOME/load.log
 	export SSHPASS="$PASSWORD"
 	# If this technique doesn't work try the one below.
 	# if sshpass -p password sftp -oBatchMode=no user@serveraddress  << !
@@ -76,12 +81,13 @@ then
    bye
 !
 	if [[ $? ]]; then
-		printf "done sftp." >&2 >> $HOME/load.log
+		printf "done sftp.\n" >&2 >> $HOME/load.log
 		# rm $HOME/$FILE
 	else
-		printf "failed to sftp." >&2 >> $HOME/load.log
+		printf "failed to sftp.\n" >&2 >> $HOME/load.log
 	fi
 else
-	printf "**Error: unable to scp $HOME/$FILE" >&2 >> $HOME/load.log
+	printf "**Error: unable to scp $HOME/$FILE\n" >&2 >> $HOME/load.log
 fi
+printf "######\n" >&2 >> $HOME/load.log
 # EOF
