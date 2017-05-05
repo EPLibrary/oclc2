@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.7 - Added absolute pathing for running by cron.
 #          0.6 - Tarball all MARC files with standard name 'submission.tar'.
 #          0.5 - Cancels tested on Production.
 #          0.4 - Bug fix for reading difference between compressed and uncompressed files.
@@ -36,7 +37,7 @@
 # as brief MARC records to the designated SFTP site in Toronto.
 #
 # By default the script looks at changes made within the last seven days but 
-# checks a file `pwd`/oclc2.last.run, and adjusts its selection date based on the 
+# checks a file $WORKING_DIR/oclc2.last.run, and adjusts its selection date based on the 
 # ANSI date found there. If you want just the last 7 days, delete the file. It 
 # will be created again with today's date. If you run the script again in 2 days
 # only altered records from the last 2 days will be noted and uploaded.
@@ -46,7 +47,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.6
+export VERSION=0.7
 export SHELL=/bin/sh
 # default milestone 7 days ago.
 export START_DATE=$(transdate -d-7)
@@ -54,16 +55,17 @@ export START_DATE=$(transdate -d-7)
 # we will save the date last run as a zero-byte file.
 export END_DATE=$(transdate -d-0)
 export HISTORY_DIRECTORY=`getpathname hist`
-export CANCELS_HISTORY_FILE_SELECTION=`pwd`/oclc2.cancels.history.file.lst
-export CANCELS_FLEX_OCLC_FILE=`pwd`/oclc2.cancels.flexkeys.OCLCnumber.lst
-export CANCELS_UNFOUND_FLEXKEYS=`pwd`/oclc2.cancels.unfound.flexkeys.lst
-export CANCELS_DIFF_FILE=`pwd`/oclc2.cancels.diff.lst
-export ERROR_LOG=`pwd`/err.log
-export CANCELS_FINAL_FLAT_FILE=`pwd`/oclc2.cancels.final.flat
+export WORKING_DIR=/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
+export CANCELS_HISTORY_FILE_SELECTION=$WORKING_DIR/oclc2.cancels.history.file.lst
+export CANCELS_FLEX_OCLC_FILE=$WORKING_DIR/oclc2.cancels.flexkeys.OCLCnumber.lst
+export CANCELS_UNFOUND_FLEXKEYS=$WORKING_DIR/oclc2.cancels.unfound.flexkeys.lst
+export CANCELS_DIFF_FILE=$WORKING_DIR/oclc2.cancels.diff.lst
+export ERROR_LOG=$WORKING_DIR/err.log
+export CANCELS_FINAL_FLAT_FILE=$WORKING_DIR/oclc2.cancels.final.flat
 ### Variables specially for 'mixed' projects.
 export NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
 export NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
-export MIXED_CATKEYS_FILE=`pwd`/oclc2.mixed.catkeys.lst
+export MIXED_CATKEYS_FILE=$WORKING_DIR/oclc2.mixed.catkeys.lst
 ### Submission file names.
 # collectionid.symbol.bibholdings.n.mrc where ‘collectionid’ is the data sync collection
 # ID number; ‘symbol’ is escaped as per the login; ‘n’ is a number to make the file
@@ -73,13 +75,13 @@ export SYMBOL=cnedm
 # These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
 export N_CANCELS=`date +%Y%m%d`0
 export N_MIXED=`date +%Y%m%d`1
-export CANCELS_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
-export MIXED_FINAL_MARC_FILE=`pwd`/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
-export SUBMISSION_TAR=`pwd`/submission.tar
+export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
+export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
-export DATE_FILE=`pwd`/oclc2.last.run
+export DATE_FILE=$WORKING_DIR/oclc2.last.run
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
@@ -143,25 +145,25 @@ run_cancels()
 		# output just that field.
 		# First we can't zcat a regular file so when that breaks, use plain old cat.
 		# Note to self: zcat implies the '.Z' extension when it runs. 
-		zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
-		if [ ! -s "tmp.zcat.$$" ]; then
+		zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >/tmp/oclc2.tmp.zcat.$$
+		if [ ! -s "/tmp/oclc2.tmp.zcat.$$" ]; then
 			# zcat didn't find any results, maybe the file isn't compressed. Try cat instead.
-			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >tmp.zcat.$$
+			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >/tmp/oclc2.tmp.zcat.$$
 		fi
 		## before:
 		# 20170401|S44FVFFADMIN|FEEPLMNA|FcNONE|NQ31221105319052|NOY|NSEPLLHL|IUa1113832|tJ1113832|aA(OCoLC)640340037||O00102
 		printf "collecting all TCN and OCLC numbers.\n" >&2
-		cat tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" -U | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
+		cat /tmp/oclc2.tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" -U | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		## after:
 		# IUepl000002574|aA(OCoLC)759176932
-		rm tmp.zcat.$$
+		rm /tmp/oclc2.tmp.zcat.$$
 	done
 	# Now we should have a file like this.
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
 	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
-		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >tmp.$$
-		mv tmp.$$ $CANCELS_FLEX_OCLC_FILE
+		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >/tmp/oclc2.tmp.$$
+		mv /tmp/oclc2.tmp.$$ $CANCELS_FLEX_OCLC_FILE
 		# Should now look like this.
 		# a1870593|ocm71780540
 		# LSC2923203|(OCoLC)932576987
@@ -173,8 +175,8 @@ run_cancels()
 		printf "searching catalog for missing catalog keys.\n" >&2
 		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF >/dev/null 2>$CANCELS_UNFOUND_FLEXKEYS
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
-		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >tmp.$$
-		mv tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
+		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >/tmp/oclc2.tmp.$$
+		mv /tmp/oclc2.tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
 		local count=$(cat $CANCELS_UNFOUND_FLEXKEYS | wc -l | pipe.pl -tc0)
 		printf "submission includes %s cancelled bib records.\n" $count >&2
 		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCELS_DIFF_FILE
@@ -205,15 +207,15 @@ run_cancels()
 run_mixed()
 {
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
-	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >tmp.$$
+	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >/tmp/oclc2.tmp.$$
 	## select all the records that were created since the start date.
 	printf "adding keys that were created since %s.\n" $START_DATE >&2
-	cat tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	## Now the modified records.
 	printf "adding keys that were modified since %s.\n" $START_DATE >&2
-	cat tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
-	cat $MIXED_CATKEYS_FILE | sort | uniq >tmp.$$
-	mv tmp.$$ $MIXED_CATKEYS_FILE
+	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
+	cat $MIXED_CATKEYS_FILE | sort | uniq >/tmp/oclc2.tmp.$$
+	mv /tmp/oclc2.tmp.$$ $MIXED_CATKEYS_FILE
 	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$ERROR_LOG
 	return 0
 }

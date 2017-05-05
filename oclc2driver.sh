@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.1 - Updated to mail results on completion.
 #          0.0 - Dev.
 #
 #################################################################
@@ -40,9 +41,8 @@ export REMOTE_DIR=/xfer/metacoll/in/bib
 export HOME=/home/ilsdev/projects/oclc2
 export PASSWORD_FILE=$HOME/oclc2.password.txt
 PASSWORD=''
-
-# FILE='*.mrc'
-FILE='submission.tar' ###### TODO: finish me.###### TODO: finish me.
+export EMAILS="anisbet@epl.ca"
+FILE='submission.tar' 
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -88,8 +88,11 @@ then
 		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE" >&2 >> $HOME/load.log
 		printf "removing mrc files.\n" >&2 >> $HOME/load.log
 		rm *.mrc
+		echo "I ran successfully!" | mailx -s"OCLC2 Upload complete" $EMAILS
 	else
 		printf "failed to sftp.\n" >&2 >> $HOME/load.log
+		results=$(cat $HOME/load.log)
+		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	printf "**Error: unable to scp $HOME/$FILE\n" >&2 >> $HOME/load.log
