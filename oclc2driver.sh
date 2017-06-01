@@ -34,7 +34,7 @@
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
 export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
-export SHELL=/usr/bin/bash
+export SHELL=/bin/bash
 export SFTP_USER=cnedm
 export SFTP_SERVER=scp-toronto.oclc.org
 export REMOTE_DIR=/xfer/metacoll/in/bib
