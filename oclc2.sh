@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 ####################################################
 #
 # Bash shell script for project oclc2
