@@ -34,7 +34,7 @@
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
 export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
-export SHELL=/bin/sh
+export SHELL=/usr/bin/bash
 export SFTP_USER=cnedm
 export SFTP_SERVER=scp-toronto.oclc.org
 export REMOTE_DIR=/xfer/metacoll/in/bib
@@ -61,12 +61,25 @@ get_password()
 ################ end Functions
 
 printf `date` >&2 >> $HOME/load.log
-scp sirsi\@eplapp.library.ualberta.ca:/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE $HOME
+REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
+# Include '/' because when the mrc files are untarred, the directory tree starts in the $HOME or '/home/ilsdev/projects/oclc2'.
+scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$FILE $HOME
 printf "scp '%s' from EPLAPP\n" $FILE >&2 >> $HOME/load.log
 if [ -f "$HOME/$FILE" ]
 then
 	cd $HOME
 	tar xvf $FILE
+	# The files will be in a sub-directory of 's/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/' because of the way they were tarred.
+	if mv $REMOTE/*.mrc $HOME
+	then
+		printf "un-tarring MRC files from EPLAPP.\n" >&2 >> $HOME/load.log
+	else
+		printf "failed to un-tar MRC files from EPLAPP.\n" >&2 >> $HOME/load.log
+		results=$(cat $HOME/load.log)
+		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
+		exit 1
+	fi
+	# $REMOTE should now be empty.
 	get_password
 	printf "sftp to %s...\n" $SFTP_SERVER >&2 >> $HOME/load.log
 	export SSHPASS="$PASSWORD"
@@ -87,7 +100,7 @@ then
 		printf "removing tarball '%s' from EPLAPP...\n" $HOME/$FILE >&2 >> $HOME/load.log
 		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE" >&2 >> $HOME/load.log
 		printf "removing mrc files.\n" >&2 >> $HOME/load.log
-		rm *.mrc
+		rm $HOME/*.mrc
 		echo "I ran successfully!" | mailx -s"OCLC2 Upload complete" $EMAILS
 	else
 		printf "failed to sftp.\n" >&2 >> $HOME/load.log

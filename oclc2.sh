@@ -47,8 +47,9 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.7
-export SHELL=/bin/sh
+export VERSION=0.8
+# using /bin/sh causes cron to 'nice' the process at '10'!
+export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 export START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
