@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.8 - SHELL updated to use bash because cron running sh is 'nice'd to 10.
 #          0.7 - Added absolute pathing for running by cron.
 #          0.6 - Tarball all MARC files with standard name 'submission.tar'.
 #          0.5 - Cancels tested on Production.
