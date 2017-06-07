@@ -89,7 +89,7 @@ export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # We save a file with today's date, and then use that with -f on seluser.
 export DATE_FILE=$WORKING_DIR/oclc2.last.run
 export DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:start" >>$LOG 
+printf "[%s] %s\n" $DATE_TIME "INIT:init" >>$LOG 
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
