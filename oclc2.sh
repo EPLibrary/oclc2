@@ -213,7 +213,7 @@ run_cancels()
 			rm $CANCELS_FINAL_FLAT_FILE
 		fi
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.init" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.init (each dot represents 1 record)" >>$LOG
 		while read -r file_line
 		do
 			if ! printFlatMARC $file_line
