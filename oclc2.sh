@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.9.01 - Cleaned log output.
 #          0.9 - Introduced time stamp logging of processes for profiling performance.
 #          0.8 - SHELL updated to use bash because cron running sh is 'nice'd to 10.
 #          0.7 - Added absolute pathing for running by cron.
@@ -49,7 +50,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.9
+export VERSION=0.9.01
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -88,13 +89,11 @@ export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # We save a file with today's date, and then use that with -f on seluser.
 export DATE_FILE=$WORKING_DIR/oclc2.last.run
 export DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:rundate start" >>$LOG 
+printf "[%s] %s\n" $DATE_TIME "INIT:start" >>$LOG 
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
 fi
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:rundate end" >>$LOG
 ### The script expects to receive commands of either 'mixed', meaning all additions and
 ### modifications, or 'cancels', indicating to upload items deleted from the catalog during
 ### the specified time frame. The other accepted command is 'exit', which will, not surprisingly,
@@ -436,6 +435,6 @@ fi
 echo $END_DATE >> $DATE_FILE 
 printf "done\n\n" >&2
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:done." >>$LOG
+printf "[%s] %s\n" $DATE_TIME "INIT:exit" >>$LOG
 exit 0
 # EOF
