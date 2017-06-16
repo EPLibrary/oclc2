@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.9.02 - Change log directory to home directory.
 #          0.9.01 - Cleaned log output.
 #          0.9 - Introduced time stamp logging of processes for profiling performance.
 #          0.8 - SHELL updated to use bash because cron running sh is 'nice'd to 10.
@@ -50,7 +51,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.9.01
+export VERSION=0.9.02
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -60,7 +61,7 @@ export START_DATE=$(transdate -d-7)
 export END_DATE=$(transdate -d-0)
 export HISTORY_DIRECTORY=$(getpathname hist)
 export WORKING_DIR=/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
-export TMP_DIR=$(getpathname tmp)
+export TMP_DIR=$WORKING_DIR
 export LOG=$TMP_DIR/oclc2.$END_DATE.$$.log
 export CANCELS_HISTORY_FILE_SELECTION=$WORKING_DIR/oclc2.cancels.history.file.lst
 export CANCELS_FLEX_OCLC_FILE=$WORKING_DIR/oclc2.cancels.flexkeys.OCLCnumber.lst
