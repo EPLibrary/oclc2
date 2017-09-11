@@ -23,6 +23,8 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.9.04 - Remove mrc files so they don't get resubmitted.
+#          0.9.03 - Remove flex key file before starting. Improved logging.
 #          0.9.02 - Change log directory to home directory.
 #          0.9.01 - Cleaned log output.
 #          0.9 - Introduced time stamp logging of processes for profiling performance.
@@ -51,7 +53,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.9.02
+export VERSION=0.9.04
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -283,6 +285,8 @@ clean_mixed()
 		else
 			tar cvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
 		fi
+		# Once added to the submission tarball get rid of the mrc files so they don't get re-submitted.
+		rm "$MIXED_FINAL_MARC_FILE"
 	else
 		printf "MARC file: '%s' was not created.\n" $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
 		return 1
@@ -308,6 +312,8 @@ clean_cancels()
 		else
 			tar cvf $SUBMISSION_TAR $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
 		fi
+		# Once added to the submission tarball get rid of the mrc files so they don't get re-submitted.
+		rm "$CANCELS_FINAL_MARC_FILE"
 	else
 		printf "MARC file: '%s' was not created.\n" $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
 		return 1

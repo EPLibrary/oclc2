@@ -49,22 +49,25 @@ get_password()
 {
 	# Tests, then reads the password file which is expected to be in the current working directory.
 	if [ ! -s "$PASSWORD_FILE" ]; then
-		printf "** error unable to SFTP results becaues I can't find the password file %s.\n" $PASSWORD_FILE >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s %s\n" $DATE_TIME "SCP: ** error unable to SFTP results becaues I can't find the password file:" $PASSWORD_FILE >> $HOME/load.log
 		exit 1
 	fi
 	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -zc0 -L-1)
 	if [ ! "$PASSWORD" ]; then
-		printf "*** failed to read password file.\n" >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "SCP: *** failed to read password file." >> $HOME/load.log
 		exit 1
 	fi
 }
 ################ end Functions
-
-printf `date` >&2 >> $HOME/load.log
+DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+printf "[%s] %s\n" $DATE_TIME "INIT:init" >> $HOME/load.log
 REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 # Include '/' because when the mrc files are untarred, the directory tree starts in the $HOME or '/home/ilsdev/projects/oclc2'.
+DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to this server." >> $HOME/load.log
 scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$FILE $HOME
-printf "scp '%s' from EPLAPP\n" $FILE >&2 >> $HOME/load.log
 if [ -f "$HOME/$FILE" ]
 then
 	cd $HOME
@@ -72,16 +75,19 @@ then
 	# The files will be in a sub-directory of 's/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/' because of the way they were tarred.
 	if mv $REMOTE/*.mrc $HOME
 	then
-		printf "un-tarring MRC files from EPLAPP.\n" >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC files from EPLAPP." >> $HOME/load.log
 	else
-		printf "failed to un-tar MRC files from EPLAPP.\n" >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC files from EPLAPP." >> $HOME/load.log
 		results=$(cat $HOME/load.log)
 		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
 		exit 1
 	fi
 	# $REMOTE should now be empty.
 	get_password
-	printf "sftp to %s...\n" $SFTP_SERVER >&2 >> $HOME/load.log
+	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+	printf "[%s] %s %s\n" $DATE_TIME "sftp to " $SFTP_SERVER >> $HOME/load.log
 	export SSHPASS="$PASSWORD"
 	# If this technique doesn't work try the one below.
 	# if sshpass -p password sftp -oBatchMode=no user@serveraddress  << !
@@ -94,21 +100,30 @@ then
    bye
 !
 	if [[ $? ]]; then
-		printf "done sftp.\n" >&2 >> $HOME/load.log
-		printf "removing tarball '%s'...\n" $HOME/$FILE >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "done sftp." >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s %s\n" $DATE_TIME "removing tarball..." $HOME/$FILE >> $HOME/load.log
 		rm $HOME/$FILE
-		printf "removing tarball '%s' from EPLAPP...\n" $HOME/$FILE >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $HOME/load.log
 		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE" >&2 >> $HOME/load.log
-		printf "removing mrc files.\n" >&2 >> $HOME/load.log
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
 		rm $HOME/*.mrc
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
 		echo "I ran successfully!" | mailx -s"OCLC2 Upload complete" $EMAILS
 	else
-		printf "failed to sftp.\n" >&2 >> $HOME/load.log
-		results=$(cat $HOME/load.log)
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $HOME/load.log
+		results=$(cat $HOME/load.log | pipe.pl -L-25)
 		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
-	printf "**Error: unable to scp $HOME/$FILE\n" >&2 >> $HOME/load.log
+	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+	printf "[%s] %s %s\n" $DATE_TIME "**Error: unable to scp" $HOME/$FILE >> $HOME/load.log
 fi
-printf "######\n" >&2 >> $HOME/load.log
+DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+printf "[%s] %s\n" $DATE_TIME "######" >> $HOME/load.log
 # EOF
