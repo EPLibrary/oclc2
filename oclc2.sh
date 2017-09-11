@@ -136,6 +136,9 @@ run_cancels()
 	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_cancels()::init" >>$LOG
 	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
+	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
+		rm "$CANCELS_FLEX_OCLC_FILE"
+	fi
 	local start_date=$(echo $START_DATE | pipe.pl -mc0:######_) # Year and month only or dates won't match file.
 	local end_date=$(echo $END_DATE | pipe.pl -mc0:#) # Year and month only or dates won't match file.
 	# To get the records of bibs that were deleted, we need to find history files since $start_date
@@ -160,8 +163,7 @@ run_cancels()
 		# output just that field.
 		# First we can't zcat a regular file so when that breaks, use plain old cat.
 		# Note to self: zcat implies the '.Z' extension when it runs. 
-		zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >/tmp/oclc2.tmp.zcat.$$
-		if [ ! -s "/tmp/oclc2.tmp.zcat.$$" ]; then
+		if ! zcat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >/tmp/oclc2.tmp.zcat.$$; then
 			# zcat didn't find any results, maybe the file isn't compressed. Try cat instead.
 			cat "$HISTORY_DIRECTORY/$h_file" 2>/dev/null | egrep -e "FVF" | egrep -e "NOY" >/tmp/oclc2.tmp.zcat.$$
 		fi
@@ -172,7 +174,7 @@ run_cancels()
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl" >>$LOG
 		cat /tmp/oclc2.tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" -U | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		## after:
-		# IUepl000002574|aA(OCoLC)759176932
+		# IUa999464|aA(OCoLC)711988979
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::cleaning up" >>$LOG
 		rm /tmp/oclc2.tmp.zcat.$$
@@ -214,7 +216,8 @@ run_cancels()
 			rm $CANCELS_FINAL_FLAT_FILE
 		fi
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.init (each dot represents 1 record)" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.init" >>$LOG
+		local dot_count=0
 		while read -r file_line
 		do
 			if ! printFlatMARC $file_line
@@ -222,9 +225,7 @@ run_cancels()
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
 				exit 1
 			fi
-			printf "." >>$LOG # This shows that this function only produces 9 records a second!!
 		done <$CANCELS_DIFF_FILE
-		printf "\n" >>$LOG
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.exit" >>$LOG
 		# Now to make the MARC output from the flat file.
