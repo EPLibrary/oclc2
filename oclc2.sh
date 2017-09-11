@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.9.05 - Add more detail to logging.
 #          0.9.04 - Remove mrc files so they don't get resubmitted.
 #          0.9.03 - Remove flex key file before starting. Improved logging.
 #          0.9.02 - Change log directory to home directory.
@@ -53,7 +54,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.9.04
+export VERSION=0.9.05
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -199,11 +200,11 @@ run_cancels()
 		# We aren't interested in the ones that are still in the catalog so send them to /dev/null.
 		printf "searching catalog for missing catalog keys.\n" >&2
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::selcatalog" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::selcatalog looking for error 111s" >>$LOG
 		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF >/dev/null 2>$CANCELS_UNFOUND_FLEXKEYS
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl parse out flex keys" >>$LOG
 		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >/tmp/oclc2.tmp.$$
 		mv /tmp/oclc2.tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
 		local count=$(cat $CANCELS_UNFOUND_FLEXKEYS | wc -l | pipe.pl -tc0)
