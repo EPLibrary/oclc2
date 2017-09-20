@@ -32,7 +32,7 @@ metadata for OCLC's DataSync Collection service. This script does not upload to 
 (See oclc2driver.sh for more information about loading bib records to DataSync Collections.
 
 If run with no arguments both mixed and cancels will be run from the last run date
-or for the period covering the last 7 calendar days if there's no last-run-date file"
+or for the period covering the last 7 calendar days if there's no last-run-date file
 in the working directory.
 Example: oclc2.sh
 
@@ -65,7 +65,7 @@ the cancels and mixed projects ran. There could also be multiple dates if the si
 files until 'oclc2driver.sh' removes the submission tarball.
 
 'oclc2driver.sh' is cron'ed on ilsdev1.epl.ca to run after 'oclc2.sh'. It coordinates the uploading
-of files to OCLC via SFTP, which can't be automated on either the Production or Test ILS.
+of files to OCLC via SFTP.
 
 Product Description:
 Bash shell script written by Andrew Nisbet for Edmonton Public Library, distributable by the enclosed license.
