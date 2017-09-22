@@ -77,4 +77,18 @@ Dependencies:
 None
 
 Known Issues:
-None
+Reported: September 22, 2017
+---
+The brief records represent just “cancels” and the other two files would be for your set holdings, correct?  If so, the brief records will have to have their own cancels collection with some slightly adjusted parameters.
+
+After checking Collection Manager, I see there is a “delete collection for CNEDM already in place (1013230).  This could be used with a few adjustments:
+Once the new collection was created you would have to make the Collection Type as “Delete WorldCat Holdings”
+The collection type is already set correctly
+
+And then they would need to be resubmitted with the cancels collection ID 1013230 and remamed
+
+```1023505.cnedm.bibholdings.201709110.mrc``` would need to become  ```1023505,cnedm.bibcancles.20170922.mrc``` or something named like that, just as long as the cancels ID was used 1st in the name.
+
+Fixed, Fri Sep 22 12:30:21 MDT 2017
+
+

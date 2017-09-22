@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.10.00 - Change cancels submission file name as per OCLC recommendations.
 #          0.9.05 - Add more detail to logging.
 #          0.9.04 - Remove mrc files so they don't get resubmitted.
 #          0.9.03 - Remove flex key file before starting. Improved logging.
@@ -80,13 +81,14 @@ export MIXED_CATKEYS_FILE=$WORKING_DIR/oclc2.mixed.catkeys.lst
 # collectionid.symbol.bibholdings.n.mrc where ‘collectionid’ is the data sync collection
 # ID number; ‘symbol’ is escaped as per the login; ‘n’ is a number to make the file
 # name unique
-export COLLECTION_ID=1023505
+export MIXED_COLLECTION_ID=1023505
+export CANCEL_COLLECTION_ID=1013230
 export SYMBOL=cnedm
 # These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
 export N_CANCELS=`date +%Y%m%d`0
 export N_MIXED=`date +%Y%m%d`1
-export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$COLLECTION_ID.$SYMBOL.bibholdings.$N_CANCELS.mrc
-export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.bibcancles.$N_CANCELS.mrc
+export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
