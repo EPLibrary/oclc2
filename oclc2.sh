@@ -87,7 +87,7 @@ export SYMBOL=cnedm
 # These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
 export N_CANCELS=`date +%Y%m%d`0
 export N_MIXED=`date +%Y%m%d`1
-export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.bibcancles.$N_CANCELS.mrc
+export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.bibcanceles.$N_CANCELS.mrc
 export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
