@@ -81,7 +81,7 @@ then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC files from EPLAPP." >> $HOME/load.log
 		results=$(cat $HOME/load.log)
-		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
+		echo "Uhoh, something went wrong $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 		exit 1
 	fi
 	# $REMOTE should now be empty.
@@ -113,12 +113,12 @@ then
 		rm $HOME/*.mrc
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
-		echo "I ran successfully!" | mailx -s"OCLC2 Upload complete" $EMAILS
+		echo "I ran successfully!" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $HOME/load.log
 		results=$(cat $HOME/load.log | pipe.pl -L-25)
-		echo "Uhoh, something went wrong $results" | mailx -s"OCLC2 Upload failed" $EMAILS
+		echo "Uhoh, something went wrong $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
