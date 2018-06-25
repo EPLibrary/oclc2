@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.10.01 - Guard for unfound flexkey.
 #          0.10.00 - Change cancels submission file name as per OCLC recommendations.
 #          0.9.05 - Add more detail to logging.
 #          0.9.04 - Remove mrc files so they don't get resubmitted.
@@ -55,7 +56,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION=0.9.05
+export VERSION="0.10.01"
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -115,12 +116,14 @@ printFlatMARC()
 	local date=$(date +%y%m%d)
 	local flexKey=$(echo "$1" | pipe.pl -oc0)
 	if [[ -z "${flexKey// }" ]]; then
-		printf "* warning no flex key provided, skipping record %s.\n" $record >&2
+		printf "* warning no flex key provided, skipping record %s.\n" $1 >&2
+		printf "* warning no flex key provided, skipping record %s.\n" $1 >>$ERROR_LOG
 		return 1
 	fi
 	local oclcNumber=$(echo "$1" | pipe.pl -oc1)
 	if [[ -z "${oclcNumber// }" ]]; then
-		printf "* warning no OCLC number found in record %s, skipping.\n" $record >&2
+		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >&2
+		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >>$ERROR_LOG
 		return 1
 	fi
 	echo "*** DOCUMENT BOUNDARY ***" >>$CANCELS_FINAL_FLAT_FILE
@@ -213,7 +216,9 @@ run_cancels()
 		printf "submission includes %s cancelled bib records.\n" $count >&2
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::diff.pl" >>$LOG
-		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 >$CANCELS_DIFF_FILE
+		# Somehow we can end up with a flex key that can't be found. Probably a catalog error, but guard for it by 
+		# not passing flex keys that don't have OCLC numbers, which can't be used anyway.
+		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 | pipe.pl -zc1 >$CANCELS_DIFF_FILE
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
 		# If one pre-exists we will delete it now so we can just keep appending in the loop.
@@ -228,6 +233,7 @@ run_cancels()
 			if ! printFlatMARC $file_line
 			then
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
+				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >>$ERROR_LOG
 				exit 1
 			fi
 		done <$CANCELS_DIFF_FILE
