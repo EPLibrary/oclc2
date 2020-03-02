@@ -127,3 +127,5 @@ fi
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "######" >> $HOME/load.log
 # EOF
+
+

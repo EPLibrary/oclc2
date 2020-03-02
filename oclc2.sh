@@ -234,9 +234,10 @@ run_cancels()
 			then
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >>$ERROR_LOG
-				exit 1
+				let dot_count=dot_count+1
 			fi
 		done <$CANCELS_DIFF_FILE
+        printf "[%s] %s\n" $DATE_TIME " there were $dot_count errors while processing." >>$LOG
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.exit" >>$LOG
 		# Now to make the MARC output from the flat file.
@@ -455,3 +456,5 @@ DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "INIT:exit" >>$LOG
 exit 0
 # EOF
+
+
