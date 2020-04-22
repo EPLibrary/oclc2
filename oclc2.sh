@@ -4,7 +4,7 @@
 # Bash shell script for project oclc2
 #
 # Collect and submit Data Sync Collections data for OCLC.
-#    Copyright (C) 2017  Andrew Nisbet
+#    Copyright (C) 2020  Andrew Nisbet
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.10.02 - Optimization of sorting and uniqing cat keys on item selection
+#                    for mixed projects.
 #          0.10.01 - Guard for unfound flexkey.
 #          0.10.00 - Change cancels submission file name as per OCLC recommendations.
 #          0.9.05 - Add more detail to logging.
@@ -259,11 +261,14 @@ run_mixed()
 	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_mixed()::init" >>$LOG
 	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
-	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null >/tmp/oclc2.tmp.$$
+	# Since we are selecting all items' catalog keys we should sort and uniq them
+	# In testing the number of cat keys drops from 1.4M to 300K keys.
+	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null | sort | uniq >/tmp/oclc2.tmp.$$
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_mixed()::selcatalog.CREATE" >>$LOG
 	## select all the records that were created since the start date.
 	printf "adding keys that were created since %s.\n" $START_DATE >&2
+	## Select all cat keys that were created after the start date.
 	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_mixed()::selcatalog.MODIFIED" >>$LOG
@@ -279,6 +284,7 @@ run_mixed()
 	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$ERROR_LOG
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_mixed()::exit" >>$LOG
+	## TODO: Remove return statements.
 	return 0
 }
 # Cleans up temp files after process run.
