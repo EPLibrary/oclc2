@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.12.00 - Fix ugly tarring of submission process.
 #          0.11.00 - Use NSK cancel holdings protocol.
 #          0.10.02 - Optimization of sorting and uniqing cat keys on item selection
 #                    for mixed projects.
@@ -49,7 +50,7 @@
 # as brief MARC records to the designated SFTP site in Toronto.
 #
 # By default the script looks at changes made within the last seven days but 
-# checks a file $WORKING_DIR/oclc2.last.run, and adjusts its selection date based on the 
+# checks a file oclc2.last.run, and adjusts its selection date based on the 
 # ANSI date found there. If you want just the last 7 days, delete the file. It 
 # will be created again with today's date. If you run the script again in 2 days
 # only altered records from the last 2 days will be noted and uploaded.
@@ -59,47 +60,53 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION="0.11.00"
+VERSION="0.12.00"
 # using /bin/sh causes cron to 'nice' the process at '10'!
-export SHELL=/usr/bin/bash
+SHELL=/usr/bin/bash
 # default milestone 7 days ago.
-export START_DATE=$(transdate -d-7)
+START_DATE=$(transdate -d-7)
 # That is for all users, but on update we just want the user since the last time we did this. In that case
 # we will save the date last run as a zero-byte file.
-export END_DATE=$(transdate -d-0)
-export HISTORY_DIRECTORY=$(getpathname hist)
-export WORKING_DIR=/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
-export TMP_DIR=$WORKING_DIR
-export LOG=$TMP_DIR/oclc2.$END_DATE.$$.log
-export CANCELS_HISTORY_FILE_SELECTION=$WORKING_DIR/oclc2.cancels.history.file.lst
-export CANCELS_FLEX_OCLC_FILE=$WORKING_DIR/oclc2.cancels.flexkeys.OCLCnumber.lst
-export CANCELS_UNFOUND_FLEXKEYS=$WORKING_DIR/oclc2.cancels.unfound.flexkeys.lst
-export CANCELS_DIFF_FILE=$WORKING_DIR/oclc2.cancels.diff.lst
-export ERROR_LOG=$WORKING_DIR/err.log
+END_DATE=$(transdate -d-0)
+HISTORY_DIRECTORY=$(getpathname hist)
+WORKING_DIR=/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
+## cd into working directory and create all files relative to there.
+if [ -d "$WORKING_DIR" ]; then
+	cd $WORKING_DIR
+else
+	echo "**error: unable to move to the working directory $WORKING_DIR. Exiting"
+	exit 1
+fi
+LOG=oclc2.$END_DATE.$$.log
+CANCELS_HISTORY_FILE_SELECTION=oclc2.cancels.history.file.lst
+CANCELS_FLEX_OCLC_FILE=oclc2.cancels.flexkeys.OCLCnumber.lst
+CANCELS_UNFOUND_FLEXKEYS=oclc2.cancels.unfound.flexkeys.lst
+CANCELS_DIFF_FILE=oclc2.cancels.diff.lst
+ERROR_LOG=err.log
 ## TODO: rename this to CANCELS_FINAL_FILE
-export CANCELS_FINAL_FILE=$WORKING_DIR/oclc2.cancels.final.lst
+CANCELS_FINAL_FILE=oclc2.cancels.final.lst
 ### Variables specially for 'mixed' projects.
-export NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
-export NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
-export MIXED_CATKEYS_FILE=$WORKING_DIR/oclc2.mixed.catkeys.lst
+NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
+NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
+MIXED_CATKEYS_FILE=oclc2.mixed.catkeys.lst
 ### Submission file names.
 # collectionid.symbol.bibholdings.n.mrc where 'collectionid' is the data sync collection
 # ID number; 'symbol' is escaped as per the login; 'n' is a number to make the file
 # name unique
-export MIXED_COLLECTION_ID=1023505
-export CANCEL_COLLECTION_ID=1013230
-export SYMBOL=cnedm
+MIXED_COLLECTION_ID=1023505
+CANCEL_COLLECTION_ID=1013230
+SYMBOL=cnedm
 # ANSI date with a '1' for mixed, on the end. Cancels used to be the same ANSI date with '0' but
 # this changed June 2020. Now we submit NSK files. See Readme.md for more details.
-export N_MIXED=`date +%Y%m%d`1
-export CANCELS_SUBMISSION=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.nsk
-export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
-export SUBMISSION_TAR=$WORKING_DIR/submission.tar
+N_MIXED=`date +%Y%m%d`1
+CANCELS_SUBMISSION=$CANCEL_COLLECTION_ID.$SYMBOL.nsk
+MIXED_FINAL_MARC_FILE=$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+SUBMISSION_TAR=submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
-export DATE_FILE=$WORKING_DIR/oclc2.last.run
-export DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+DATE_FILE=oclc2.last.run
+DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "INIT:init" >>$LOG 
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
@@ -403,7 +410,7 @@ show_usage()
 	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
 	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
 	printf "  (See above for explaination of flags). The date value is not checked and\n" >&2
-	printf "  will throw an error if not a valid ANSI date (YYYMMDD format).\n" >&2
+	printf "  will throw an error if not a valid ANSI date (YYYYMMDD format).\n" >&2
 	printf "  \n"                                            >&2
 	printf "  Once the report is done it will save today's date into file\n  '%s'\n" $DATE_FILE >&2
 	printf "  and use this date as the last milestone for the next submission. If the file can't be found\n" >&2
@@ -462,5 +469,3 @@ DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "INIT:exit" >>$LOG
 exit 0
 # EOF
-
-
