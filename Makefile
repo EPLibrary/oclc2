@@ -1,10 +1,9 @@
 ####################################################
 # Makefile for project oclc2 
 # Created: 2016-12-12
-# Copyright (c) Edmonton Public Library 2016-12-12
 #
 # Manages the distribution of oclc2.pl.
-#    Copyright (C) 2017  Andrew Nisbet
+#    Copyright (C) 2020  Andrew Nisbet
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +22,7 @@
 #
 # Written by Andrew Nisbet at Edmonton Public Library
 # Rev: 
-#      0.0 - Dev. 
+#      1.0 - Dev. 
 ####################################################
 # Change comment below for appropriate server.
 PRODUCTION_SERVER=eplapp.library.ualberta.ca

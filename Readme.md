@@ -1,5 +1,47 @@
-== Project update Wed Jun 10 09:42:21 MDT 2020
-Use 1013230 for the cancels…… That’s the one I switched over….
+== Project update Wed Jun 18 2020
+There are some changes to the way that cancels are processed from now on.
+Based on the recommendations of Larry Wolkan of OCLC.org, we will now 
+submit a Number Search Key (NSK) file, which is a UTF-8 CSV with '.nsk'
+extension.
+
+Identification of holdings to cancel will remain the same, however the 
+script now makes NSK CSV UTF-8 files, not flat and MARC files.
+
+(OCoLC) 12345678
+
+Many records have multiple entries in the 035 field, but turns out you 
+only need the first one. The remainder are separated by a 'z' sub-field
+and can be ingored.
+
+Pipe.pl is used to extract the 035 from flat files. I use pipe.pl again
+to format the OCLC numbers into the NSK file format as follows.
+
+=== Non-MARC Numeric Search Key (NSK) production instructions
+
+Data must be sent as a CSV UTF-8 (Comma delimited) file, containing two columns.
+
+The first column is labeled ```LSN```, and is essentially an empty column. 
+Processing of the data will add an arbitrary value so that local bibliographic 
+data (LDBs) can be created and WorldCat records can be output. I don't know
+what this means but the first column can be left empty and does process.
+
+The second column should be labeled, ```OCLC_Number``` and contains the OCLC 
+control numbers. The prefix (OCoLC) should be added to each OCLC control number. 
+
+Example: ```(OCoLC) 198765401```
+
+=== Submitting NSK files
+
+The site and user name have changed, but the password remains the same.
+
+HOST: filex-r3.oclc.org
+USER_NAME: fx_cnedm
+PASSWORD: <no change>
+PATH:  /xfer/metacoll/in/bib 
+FILE_NAME: 1013230.cnedm.nsk (File name change for cancels only)
+
+
+Use 1013230 for the cancels That’s the one I switched over.
 
  /xfer/metacoll/in/bib
 

@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.11.00 - Use NSK cancel holdings protocol.
 #          0.10.02 - Optimization of sorting and uniqing cat keys on item selection
 #                    for mixed projects.
 #          0.10.01 - Guard for unfound flexkey.
@@ -58,7 +59,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-export VERSION="0.10.01"
+export VERSION="0.11.00"
 # using /bin/sh causes cron to 'nice' the process at '10'!
 export SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -75,22 +76,23 @@ export CANCELS_FLEX_OCLC_FILE=$WORKING_DIR/oclc2.cancels.flexkeys.OCLCnumber.lst
 export CANCELS_UNFOUND_FLEXKEYS=$WORKING_DIR/oclc2.cancels.unfound.flexkeys.lst
 export CANCELS_DIFF_FILE=$WORKING_DIR/oclc2.cancels.diff.lst
 export ERROR_LOG=$WORKING_DIR/err.log
-export CANCELS_FINAL_FLAT_FILE=$WORKING_DIR/oclc2.cancels.final.flat
+## TODO: rename this to CANCELS_FINAL_FILE
+export CANCELS_FINAL_FILE=$WORKING_DIR/oclc2.cancels.final.lst
 ### Variables specially for 'mixed' projects.
 export NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
 export NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
 export MIXED_CATKEYS_FILE=$WORKING_DIR/oclc2.mixed.catkeys.lst
 ### Submission file names.
-# collectionid.symbol.bibholdings.n.mrc where ‘collectionid’ is the data sync collection
-# ID number; ‘symbol’ is escaped as per the login; ‘n’ is a number to make the file
+# collectionid.symbol.bibholdings.n.mrc where 'collectionid' is the data sync collection
+# ID number; 'symbol' is escaped as per the login; 'n' is a number to make the file
 # name unique
 export MIXED_COLLECTION_ID=1023505
 export CANCEL_COLLECTION_ID=1013230
 export SYMBOL=cnedm
-# These are ints that represent the date in ANSI with a '0' for cancels and '1' for mixed on the end.
-export N_CANCELS=`date +%Y%m%d`0
+# ANSI date with a '1' for mixed, on the end. Cancels used to be the same ANSI date with '0' but
+# this changed June 2020. Now we submit NSK files. See Readme.md for more details.
 export N_MIXED=`date +%Y%m%d`1
-export CANCELS_FINAL_MARC_FILE=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.bibcanceles.$N_CANCELS.mrc
+export CANCELS_SUBMISSION=$WORKING_DIR/$CANCEL_COLLECTION_ID.$SYMBOL.nsk
 export MIXED_FINAL_MARC_FILE=$WORKING_DIR/$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
 export SUBMISSION_TAR=$WORKING_DIR/submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
@@ -107,34 +109,21 @@ fi
 ### modifications, or 'cancels', indicating to upload items deleted from the catalog during
 ### the specified time frame. The other accepted command is 'exit', which will, not surprisingly,
 ### exit the script.
-# Outputs a well-formed flat MARC record of the argument record and date string.
-# This subroutine is used in the Cancels process.
+
+# Outputs OCLC numbers in raw NSK format ready for conversion to CSV.
+# This subroutine is used in the Cancels process only.
 # param:  The record is a flex key and oclcNumber separated by a pipe: 'AAN-1945|(OCoLC)3329882'
 # output: flat MARC record as a string.
-# return: always returns 0.
-printFlatMARC()
+# return: 1 if there is an waring of nothing to do, and 0 otherwise.
+printNumberSearchKeyRawFormat()
 {
-	# the date in 'yymmdd' format. Example: 120831
-	local date=$(date +%y%m%d)
-	local flexKey=$(echo "$1" | pipe.pl -oc0)
-	if [[ -z "${flexKey// }" ]]; then
-		printf "* warning no flex key provided, skipping record %s.\n" $1 >&2
-		printf "* warning no flex key provided, skipping record %s.\n" $1 >>$ERROR_LOG
-		return 1
-	fi
 	local oclcNumber=$(echo "$1" | pipe.pl -oc1)
 	if [[ -z "${oclcNumber// }" ]]; then
 		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >&2
 		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >>$ERROR_LOG
 		return 1
 	fi
-	echo "*** DOCUMENT BOUNDARY ***" >>$CANCELS_FINAL_FLAT_FILE
-	echo "FORM=MARC" >>$CANCELS_FINAL_FLAT_FILE
-	echo ".000. |aamI 0d" >>$CANCELS_FINAL_FLAT_FILE
-	echo ".001. |a$flexKey"  >>$CANCELS_FINAL_FLAT_FILE
-	echo ".008. |a"$date"nuuuu    xx            000 u und u" >>$CANCELS_FINAL_FLAT_FILE
-	echo ".035.   |a$oclcNumber"  >>$CANCELS_FINAL_FLAT_FILE # like (OCoLC)32013207
-	echo ".852.   |aCNEDM"   >>$CANCELS_FINAL_FLAT_FILE
+	echo "|$oclcNumber"  >>$CANCELS_FINAL_FILE # like '|(OCoLC)32013207'
 	return 0
 }
 
@@ -224,15 +213,15 @@ run_cancels()
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
 		# If one pre-exists we will delete it now so we can just keep appending in the loop.
-		if [[ -s "$CANCELS_FINAL_FLAT_FILE" ]]; then
-			rm $CANCELS_FINAL_FLAT_FILE
+		if [[ -s "$CANCELS_FINAL_FILE" ]]; then
+			rm $CANCELS_FINAL_FILE
 		fi
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.init" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printNumberSearchKeyRawFormat.init" >>$LOG
 		local dot_count=0
 		while read -r file_line
 		do
-			if ! printFlatMARC $file_line
+			if ! printNumberSearchKeyRawFormat $file_line
 			then
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
 				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >>$ERROR_LOG
@@ -241,13 +230,18 @@ run_cancels()
 		done <$CANCELS_DIFF_FILE
         printf "[%s] %s\n" $DATE_TIME " there were $dot_count errors while processing." >>$LOG
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printFlatMARC.exit" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printNumberSearchKeyRawFormat.exit" >>$LOG
 		# Now to make the MARC output from the flat file.
 		printf "creating marc file.\n" >&2
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::flatskip" >>$LOG
+		printf "[%s] %s\n" $DATE_TIME "run_cancels():pipe output" >>$LOG
 		## This converts the cancel flat file into a marc file ready to send to OCLC.
-		cat $CANCELS_FINAL_FLAT_FILE | flatskip -aMARC -if -om > $CANCELS_FINAL_MARC_FILE 2>>$ERROR_LOG
+		## $CANCELS_FINAL_FILE needs to be a list similar to the following.
+		## |(OCoLC) 12345678
+		## |(OCoLC) 12345677
+		## |(OCoLC) 12345676
+		## | ...
+		cat $CANCELS_FINAL_FILE | pipe.pl -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_cancels()::exit" >>$LOG
@@ -323,16 +317,16 @@ clean_cancels()
 {
 	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "clean_cancels()::init" >>$LOG
-	if [ -s "$CANCELS_FINAL_MARC_FILE" ]; then
+	if [ -s "$CANCELS_SUBMISSION" ]; then
 		if [ -s "$SUBMISSION_TAR" ]; then
-			tar uvf $SUBMISSION_TAR $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+			tar uvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$ERROR_LOG
 		else
-			tar cvf $SUBMISSION_TAR $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+			tar cvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$ERROR_LOG
 		fi
 		# Once added to the submission tarball get rid of the mrc files so they don't get re-submitted.
-		rm "$CANCELS_FINAL_MARC_FILE"
+		rm "$CANCELS_SUBMISSION"
 	else
-		printf "MARC file: '%s' was not created.\n" $CANCELS_FINAL_MARC_FILE >>$ERROR_LOG
+		printf "MARC file: '%s' was not created.\n" $CANCELS_SUBMISSION >>$ERROR_LOG
 		return 1
 	fi
 	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
@@ -347,8 +341,8 @@ clean_cancels()
 	if [ -s "$CANCELS_DIFF_FILE" ]; then
 		rm $CANCELS_DIFF_FILE
 	fi
-	if [ -s "$CANCELS_FINAL_FLAT_FILE" ]; then
-		rm $CANCELS_FINAL_FLAT_FILE
+	if [ -s "$CANCELS_FINAL_FILE" ]; then
+		rm $CANCELS_FINAL_FILE
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "clean_cancels()::exit" >>$LOG
@@ -428,7 +422,7 @@ if [ $# -eq 0 ] ; then
 	clean_cancels
 	run_mixed
 	clean_mixed
-elif [ $# -eq 1 ]; then # 1 param or 2.
+elif [ $# -eq 1 ] || [ $# -eq 2 ]; then # .
 	case "$1" in
 		[cC])
 			ask_mod_date

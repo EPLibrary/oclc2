@@ -28,8 +28,8 @@
 #
 #################################################################
 # Manon Barbeau
-# OCLC · Training & Implementation Specialist-Spécialiste en formation & implantation, OCLC Canada
-# 9955 Chateauneuf, Suite 135, Brossard, Québec Canada J4Z 3V5
+# OCLC ï¿½ Training & Implementation Specialist-Spï¿½cialiste en formation & implantation, OCLC Canada
+# 9955 Chateauneuf, Suite 135, Brossard, Quï¿½bec Canada J4Z 3V5
 # T +1-888-658-6583 / 450-656-8955
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
@@ -127,5 +127,3 @@ fi
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "######" >> $HOME/load.log
 # EOF
-
-
