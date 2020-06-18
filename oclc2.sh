@@ -241,7 +241,12 @@ run_cancels()
 		## |(OCoLC) 12345677
 		## |(OCoLC) 12345676
 		## | ...
-		cat $CANCELS_FINAL_FILE | pipe.pl -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
+		## Adding -gc1:"OCoLC" because non-OCLC numbers appear in the list. 
+		cat $CANCELS_FINAL_FILE | pipe.pl -gc1:"OCoLC" -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
+		# Log the rejected numbers.
+		echo -e "the following records were detected but are not valid OCLC numbers\n-- START REJECT:\n" >>$ERROR_LOG
+		cat $CANCELS_FINAL_FILE | pipe.pl -Gc1:"OCoLC" >>$ERROR_LOG
+		echo -e "-- END REJECT:\n" >>$ERROR_LOG
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "run_cancels()::exit" >>$LOG
