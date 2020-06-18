@@ -23,25 +23,27 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.0 - Marc files from EPLAPP are no longer deeply nested.
 #          0.1 - Updated to mail results on completion.
 #          0.0 - Dev.
 #
 #################################################################
 # Manon Barbeau
-# OCLC � Training & Implementation Specialist-Sp�cialiste en formation & implantation, OCLC Canada
-# 9955 Chateauneuf, Suite 135, Brossard, Qu�bec Canada J4Z 3V5
+# OCLC - Training & Implementation Specialist-Specialiste en formation & implantation, OCLC Canada
+# 9955 Chateauneuf, Suite 135, Brossard, Quebec Canada J4Z 3V5
 # T +1-888-658-6583 / 450-656-8955
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
-export PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
-export SHELL=/bin/bash
-export SFTP_USER=cnedm
-export SFTP_SERVER=scp-toronto.oclc.org
-export REMOTE_DIR=/xfer/metacoll/in/bib
-export HOME=/home/ilsdev/projects/oclc2
-export PASSWORD_FILE=$HOME/oclc2.password.txt
+## This script assumes that both a mixed (.mrc file) and cancel (.nsk file) were produced on EPLAPP.
+PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
+SHELL=/bin/bash
+SFTP_USER=fx_cnedm
+SFTP_SERVER=filex-r3.oclc.org
+REMOTE_DIR=/xfer/metacoll/in/bib
+HOME=/home/ilsdev/projects/oclc2
+PASSWORD_FILE=$HOME/oclc2.password.txt
 PASSWORD=''
-export EMAILS="anisbet@epl.ca"
+EMAILS="andrew.nisbet@epl.ca"
 FILE='submission.tar' 
 ################### Functions.
 # Reads the password file for the SFTP site.
@@ -71,20 +73,30 @@ scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$FILE $HOME
 if [ -f "$HOME/$FILE" ]
 then
 	cd $HOME
+	# Untar the .mrc and .nsk files.
 	tar xvf $FILE
-	# The files will be in a sub-directory of 's/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/' because of the way they were tarred.
-	if mv $REMOTE/*.mrc $HOME
-	then
+	if ls *.mrc; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC files from EPLAPP." >> $HOME/load.log
+		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC file from EPLAPP." >> $HOME/load.log
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC files from EPLAPP." >> $HOME/load.log
+		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC file from EPLAPP." >> $HOME/load.log
 		results=$(cat $HOME/load.log)
-		echo "Uhoh, something went wrong $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		echo -e "Uhoh, something went wrong while retrieving submission from EPLAPP.\n $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 		exit 1
 	fi
-	# $REMOTE should now be empty.
+	# Test for NSK file
+	if ls *.nsk; then
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring nsk file from EPLAPP." >> $HOME/load.log
+	else
+		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
+		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar nsk file from EPLAPP." >> $HOME/load.log
+		results=$(cat $HOME/load.log)
+		echo -e "Uhoh, something went wrong while retrieving submission from EPLAPP.\n $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		exit 1
+	fi
+	# Start the SFTP process.
 	get_password
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s %s\n" $DATE_TIME "sftp to " $SFTP_SERVER >> $HOME/load.log
@@ -97,6 +109,7 @@ then
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !
    cd $REMOTE_DIR
    put $HOME/*.mrc
+   put $HOME/*.nsk
    bye
 !
 	if [[ $? ]]; then
@@ -111,14 +124,15 @@ then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
 		rm $HOME/*.mrc
+		rm $HOME/*.nsk
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
-		echo "I ran successfully!" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $HOME/load.log
 		results=$(cat $HOME/load.log | pipe.pl -L-25)
-		echo "Uhoh, something went wrong $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
