@@ -246,6 +246,7 @@ run_cancels()
 		printf "creating marc file.\n" >&2
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::flatskip" >>$LOG
+		## This converts the cancel flat file into a marc file ready to send to OCLC.
 		cat $CANCELS_FINAL_FLAT_FILE | flatskip -aMARC -if -om > $CANCELS_FINAL_MARC_FILE 2>>$ERROR_LOG
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)

@@ -1,3 +1,12 @@
+== Project update Wed Jun 10 09:42:21 MDT 2020
+Use 1013230 for the cancels…… That’s the one I switched over….
+
+ /xfer/metacoll/in/bib
+
+Continue to use this new NSK method for your cancels Collection ID: 1013230
+
+Continue to use the regular way for your set holdings Collection ID: 1023505
+
 === 2016-12-12, (updated Mon Sep 11 10:02:29 MDT 2017) ===
 
 Project Notes
