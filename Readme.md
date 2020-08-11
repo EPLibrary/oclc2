@@ -1,4 +1,4 @@
-== Project update Wed Jun 18 2020
+== Project update Wed August 11 2020
 There are some changes to the way that cancels are processed from now on.
 Based on the recommendations of Larry Wolkan of OCLC.org, we will now 
 submit a Number Search Key (NSK) file, which is a UTF-8 CSV with '.nsk'
@@ -6,8 +6,6 @@ extension.
 
 Identification of holdings to cancel will remain the same, however the 
 script now makes NSK CSV UTF-8 files, not flat and MARC files.
-
-(OCoLC) 12345678
 
 Many records have multiple entries in the 035 field, but turns out you 
 only need the first one. The remainder are separated by a 'z' sub-field
@@ -28,7 +26,7 @@ what this means but the first column can be left empty and does process.
 The second column should be labeled, ```OCLC_Number``` and contains the OCLC 
 control numbers. The prefix (OCoLC) should be added to each OCLC control number. 
 
-Example: ```(OCoLC) 198765401```
+Example: ```(OCoLC)198765401```
 
 === Submitting NSK files
 
@@ -38,11 +36,9 @@ HOST: filex-r3.oclc.org
 USER_NAME: fx_cnedm
 PASSWORD: <no change>
 PATH:  /xfer/metacoll/in/bib 
-FILE_NAME: 1013230.cnedm.nsk (File name change for cancels only)
+FILE_NAME: 1013230.cnedm.20200811.nsk (File name change for cancels only)
 
-
-Use 1013230 for the cancels That’s the one I switched over.
-
+Upload directory is:
  /xfer/metacoll/in/bib
 
 Continue to use this new NSK method for your cancels Collection ID: 1013230
