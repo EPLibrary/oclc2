@@ -412,8 +412,8 @@ show_usage()
 	printf "  \n"                                            >&2
 	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
 	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
-	printf "  (See above for explaination of flags). The date value is not checked and\n" >&2
-	printf "  will throw an error if not a valid ANSI date (YYYYMMDD format).\n" >&2
+	printf "  (See above for explaination of flags). The date is not checked as a valid date but\n" >&2
+	printf "  will throw an error if not a valid ANSI date format of 'YYYYMMDD'.\n" >&2
 	printf "  \n"                                            >&2
 	printf "  Once the report is done it will save today's date into file\n  '%s'\n" $DATE_FILE >&2
 	printf "  and use this date as the last milestone for the next submission. If the file can't be found\n" >&2
