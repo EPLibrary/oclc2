@@ -23,6 +23,9 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.12.01 - Change NSK output file name to include end date, and made variable
+#                    names more meaningful N_MIXED => MIXED_PROJECT_NUMBER and 
+#                    CANCELS_FINAL_FILE => CANCELS_FINAL_FILE_PRE_NSK.
 #          0.12.00 - Fix ugly tarring of submission process.
 #          0.11.00 - Use NSK cancel holdings protocol.
 #          0.10.02 - Optimization of sorting and uniqing cat keys on item selection
@@ -60,7 +63,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="0.12.00"
+VERSION="0.12.01"
 # using /bin/sh causes cron to 'nice' the process at '10'!
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -83,8 +86,8 @@ CANCELS_FLEX_OCLC_FILE=oclc2.cancels.flexkeys.OCLCnumber.lst
 CANCELS_UNFOUND_FLEXKEYS=oclc2.cancels.unfound.flexkeys.lst
 CANCELS_DIFF_FILE=oclc2.cancels.diff.lst
 ERROR_LOG=err.log
-## TODO: rename this to CANCELS_FINAL_FILE
-CANCELS_FINAL_FILE=oclc2.cancels.final.lst
+## Output file that is used to convert to NSK. See $CANCELS_SUBMISSION for NSK file name.
+CANCELS_FINAL_FILE_PRE_NSK=oclc2.cancels.final.lst
 ### Variables specially for 'mixed' projects.
 NOT_THESE_TYPES="PAPERBACK,JPAPERBACK,BKCLUBKIT,COMIC,DAISYRD,EQUIPMENT,E-RESOURCE,FLICKSTOGO,FLICKTUNE,JFLICKTUNE,JTUNESTOGO,PAMPHLET,RFIDSCANNR,TUNESTOGO,JFLICKTOGO,PROGRAMKIT,LAPTOP,BESTSELLER,JBESTSELLR"
 NOT_THESE_LOCATIONS="BARCGRAVE,CANC_ORDER,DISCARD,EPLACQ,EPLBINDERY,EPLCATALOG,EPLILL,INCOMPLETE,LONGOVRDUE,LOST,LOST-ASSUM,LOST-CLAIM,LOST-PAID,MISSING,NON-ORDER,ON-ORDER,BINDERY,CATALOGING,COMICBOOK,INTERNET,PAMPHLET,DAMAGE,UNKNOWN,REF-ORDER,BESTSELLER,JBESTSELLR,STOLEN"
@@ -98,9 +101,9 @@ CANCEL_COLLECTION_ID=1013230
 SYMBOL=cnedm
 # ANSI date with a '1' for mixed, on the end. Cancels used to be the same ANSI date with '0' but
 # this changed June 2020. Now we submit NSK files. See Readme.md for more details.
-N_MIXED=`date +%Y%m%d`1
-CANCELS_SUBMISSION=$CANCEL_COLLECTION_ID.$SYMBOL.nsk
-MIXED_FINAL_MARC_FILE=$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$N_MIXED.mrc
+MIXED_PROJECT_NUMBER=`date +%Y%m%d`1
+CANCELS_SUBMISSION=$CANCEL_COLLECTION_ID.$SYMBOL.$END_DATE.nsk
+MIXED_FINAL_MARC_FILE=$MIXED_COLLECTION_ID.$SYMBOL.bibholdings.$MIXED_PROJECT_NUMBER.mrc
 SUBMISSION_TAR=submission.tar
 # Stores the ANSI date of the last run. All contents are clobbered when script re-runs.
 # This script features the ability to collect new users since the last time it ran.
@@ -130,7 +133,7 @@ printNumberSearchKeyRawFormat()
 		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >>$ERROR_LOG
 		return 1
 	fi
-	echo "|$oclcNumber"  >>$CANCELS_FINAL_FILE # like '|(OCoLC)32013207'
+	echo "|$oclcNumber"  >>$CANCELS_FINAL_FILE_PRE_NSK # like '|(OCoLC)32013207'
 	return 0
 }
 
@@ -220,8 +223,8 @@ run_cancels()
 		# a809658|(OCoLC)320195792
 		# Create the brief delete MARC file of all the entries.
 		# If one pre-exists we will delete it now so we can just keep appending in the loop.
-		if [[ -s "$CANCELS_FINAL_FILE" ]]; then
-			rm $CANCELS_FINAL_FILE
+		if [[ -s "$CANCELS_FINAL_FILE_PRE_NSK" ]]; then
+			rm $CANCELS_FINAL_FILE_PRE_NSK
 		fi
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printNumberSearchKeyRawFormat.init" >>$LOG
@@ -243,16 +246,16 @@ run_cancels()
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "run_cancels():pipe output" >>$LOG
 		## This converts the cancel flat file into a marc file ready to send to OCLC.
-		## $CANCELS_FINAL_FILE needs to be a list similar to the following.
+		## $CANCELS_FINAL_FILE_PRE_NSK needs to be a list similar to the following.
 		## |(OCoLC) 12345678
 		## |(OCoLC) 12345677
 		## |(OCoLC) 12345676
 		## | ...
 		## Adding -gc1:"OCoLC" because non-OCLC numbers appear in the list. 
-		cat $CANCELS_FINAL_FILE | pipe.pl -gc1:"OCoLC" -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
+		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -gc1:"OCoLC" -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
 		# Log the rejected numbers.
 		echo -e "the following records were detected but are not valid OCLC numbers\n-- START REJECT:\n" >>$ERROR_LOG
-		cat $CANCELS_FINAL_FILE | pipe.pl -Gc1:"OCoLC" >>$ERROR_LOG
+		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -Gc1:"OCoLC" >>$ERROR_LOG
 		echo -e "-- END REJECT:\n" >>$ERROR_LOG
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
@@ -353,8 +356,8 @@ clean_cancels()
 	if [ -s "$CANCELS_DIFF_FILE" ]; then
 		rm $CANCELS_DIFF_FILE
 	fi
-	if [ -s "$CANCELS_FINAL_FILE" ]; then
-		rm $CANCELS_FINAL_FILE
+	if [ -s "$CANCELS_FINAL_FILE_PRE_NSK" ]; then
+		rm $CANCELS_FINAL_FILE_PRE_NSK
 	fi
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s\n" $DATE_TIME "clean_cancels()::exit" >>$LOG
@@ -409,8 +412,8 @@ show_usage()
 	printf "  \n"                                            >&2
 	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
 	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
-	printf "  (See above for explaination of flags). The date value is not checked and\n" >&2
-	printf "  will throw an error if not a valid ANSI date (YYYYMMDD format).\n" >&2
+	printf "  (See above for explaination of flags). The date is not checked as a valid date but\n" >&2
+	printf "  will throw an error if not a valid ANSI date format of 'YYYYMMDD'.\n" >&2
 	printf "  \n"                                            >&2
 	printf "  Once the report is done it will save today's date into file\n  '%s'\n" $DATE_FILE >&2
 	printf "  and use this date as the last milestone for the next submission. If the file can't be found\n" >&2

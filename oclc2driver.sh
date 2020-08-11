@@ -23,6 +23,8 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.5 - Change testing and don't exit if there wasn't an mrc and nsk,  
+#                it run in cancel or mixed mode their may not be one or the other.
 #          1.0 - Marc files from EPLAPP are no longer deeply nested.
 #          0.1 - Updated to mail results on completion.
 #          0.0 - Dev.
@@ -43,8 +45,8 @@ REMOTE_DIR=/xfer/metacoll/in/bib
 HOME=/home/ilsdev/projects/oclc2
 PASSWORD_FILE=$HOME/oclc2.password.txt
 PASSWORD=''
-EMAILS="andrew.nisbet@epl.ca"
-FILE='submission.tar' 
+EMAILS="ilsadmins@epl.ca"
+SUBMISSION_TAR_FILE='submission.tar' 
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -69,33 +71,33 @@ REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 # Include '/' because when the mrc files are untarred, the directory tree starts in the $HOME or '/home/ilsdev/projects/oclc2'.
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to this server." >> $HOME/load.log
-scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$FILE $HOME
-if [ -f "$HOME/$FILE" ]
-then
+scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$SUBMISSION_TAR_FILE $HOME
+if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	cd $HOME
 	# Untar the .mrc and .nsk files.
-	tar xvf $FILE
-	if ls *.mrc; then
+	tar xvf $SUBMISSION_TAR_FILE
+	if ls *.mrc 2>/dev/null; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC file from EPLAPP." >> $HOME/load.log
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC file from EPLAPP." >> $HOME/load.log
-		results=$(cat $HOME/load.log)
-		echo -e "Uhoh, something went wrong while retrieving submission from EPLAPP.\n $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
-		exit 1
+		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC file from EPLAPP. Did you run oclc2.sh in mix mode?" >> $HOME/load.log
 	fi
 	# Test for NSK file
-	if ls *.nsk; then
+	if ls *.nsk 2>/dev/null; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring nsk file from EPLAPP." >> $HOME/load.log
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar nsk file from EPLAPP." >> $HOME/load.log
-		results=$(cat $HOME/load.log)
-		echo -e "Uhoh, something went wrong while retrieving submission from EPLAPP.\n $results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
-		exit 1
+		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar nsk file from EPLAPP. Did you run oclc.sh in cancel mode?" >> $HOME/load.log
 	fi
+    if ! ls *.nsk 2 >/dev/null; then
+        if ! ls *.mrc 2 >/dev/null; then
+            results=$(cat $HOME/load.log)
+            echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on EPLAPP." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 failed!" $EMAILS
+            exit 1
+        fi
+    fi
 	# Start the SFTP process.
 	get_password
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
@@ -106,25 +108,25 @@ then
 	# put file*
 	# bye
 	# !
-	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !
+	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
    cd $REMOTE_DIR
    put $HOME/*.mrc
    put $HOME/*.nsk
    bye
-!
+!END_OF_COMMAND
 	if [[ $? ]]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "done sftp." >> $HOME/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s %s\n" $DATE_TIME "removing tarball..." $HOME/$FILE >> $HOME/load.log
-		rm $HOME/$FILE
+		printf "[%s] %s %s\n" $DATE_TIME "removing tarball..." $HOME/$SUBMISSION_TAR_FILE >> $HOME/load.log
+		rm $HOME/$SUBMISSION_TAR_FILE
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $HOME/load.log
-		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$FILE" >&2 >> $HOME/load.log
+		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
-		rm $HOME/*.mrc
-		rm $HOME/*.nsk
+		rm $HOME/*.mrc 2>/dev/null # there may not be a mrc if only cancels were run.
+		rm $HOME/*.nsk 2>/dev/null # there may not be a nsk if only mixed were run.
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
 		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
@@ -136,7 +138,7 @@ then
 	fi
 else
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s %s\n" $DATE_TIME "**Error: unable to scp" $HOME/$FILE >> $HOME/load.log
+	printf "[%s] %s %s\n" $DATE_TIME "**Error: unable to scp" $HOME/$SUBMISSION_TAR_FILE >> $HOME/load.log
 fi
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "######" >> $HOME/load.log
