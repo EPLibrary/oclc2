@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.5.01 - Limit error log output in emails to 25 lines.  
 #          1.5 - Change testing and don't exit if there wasn't an mrc and nsk,  
 #                it run in cancel or mixed mode their may not be one or the other.
 #          1.0 - Marc files from EPLAPP are no longer deeply nested.
@@ -93,7 +94,7 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	fi
     if ! ls *.nsk 2 >/dev/null; then
         if ! ls *.mrc 2 >/dev/null; then
-            results=$(cat $HOME/load.log)
+            results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $HOME/load.log)
             echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on EPLAPP." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 failed!" $EMAILS
             exit 1
         fi
@@ -133,7 +134,7 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $HOME/load.log
-		results=$(cat $HOME/load.log | pipe.pl -L-25)
+		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $HOME/load.log)
 		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
