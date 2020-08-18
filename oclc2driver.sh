@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.5.02 - Fix redirect error that stopped script from completing.  
 #          1.5.01 - Limit error log output in emails to 25 lines.  
 #          1.5 - Change testing and don't exit if there wasn't an mrc and nsk,  
 #                it run in cancel or mixed mode their may not be one or the other.
@@ -71,13 +72,14 @@ printf "[%s] %s\n" $DATE_TIME "INIT:init" >> $HOME/load.log
 REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 # Include '/' because when the mrc files are untarred, the directory tree starts in the $HOME or '/home/ilsdev/projects/oclc2'.
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to this server." >> $HOME/load.log
+hostname=$(hostname)
+printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to $hostname." >> $HOME/load.log
 scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$SUBMISSION_TAR_FILE $HOME
 if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	cd $HOME
 	# Untar the .mrc and .nsk files.
 	tar xvf $SUBMISSION_TAR_FILE
-	if ls *.mrc 2>/dev/null; then
+	if ls *.mrc 2>&1>/dev/null; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC file from EPLAPP." >> $HOME/load.log
 	else
@@ -85,15 +87,15 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC file from EPLAPP. Did you run oclc2.sh in mix mode?" >> $HOME/load.log
 	fi
 	# Test for NSK file
-	if ls *.nsk 2>/dev/null; then
+	if ls *.nsk 2>&1>/dev/null; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring nsk file from EPLAPP." >> $HOME/load.log
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar nsk file from EPLAPP. Did you run oclc.sh in cancel mode?" >> $HOME/load.log
 	fi
-    if ! ls *.nsk 2 >/dev/null; then
-        if ! ls *.mrc 2 >/dev/null; then
+    if ! ls *.nsk 2>&1>/dev/null; then
+        if ! ls *.mrc 2>&1>/dev/null; then
             results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $HOME/load.log)
             echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on EPLAPP." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 failed!" $EMAILS
             exit 1
@@ -126,8 +128,8 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
-		rm $HOME/*.mrc 2>/dev/null # there may not be a mrc if only cancels were run.
-		rm $HOME/*.nsk 2>/dev/null # there may not be a nsk if only mixed were run.
+		rm $HOME/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
+		rm $HOME/*.nsk 2>&1>/dev/null # there may not be a nsk if only mixed were run.
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
 		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
