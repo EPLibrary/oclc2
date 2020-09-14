@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          0.13.00 - Make oclc2driver.sh update the last run file.
 #          0.12.01 - Change NSK output file name to include end date, and made variable
 #                    names more meaningful N_MIXED => MIXED_PROJECT_NUMBER and 
 #                    CANCELS_FINAL_FILE => CANCELS_FINAL_FILE_PRE_NSK.
@@ -63,7 +64,7 @@
 # *** Edit these to suit your environment *** #
 source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="0.12.01"
+VERSION="0.13.00"
 # using /bin/sh causes cron to 'nice' the process at '10'!
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
@@ -415,9 +416,9 @@ show_usage()
 	printf "  (See above for explaination of flags). The date is not checked as a valid date but\n" >&2
 	printf "  will throw an error if not a valid ANSI date format of 'YYYYMMDD'.\n" >&2
 	printf "  \n"                                            >&2
-	printf "  Once the report is done it will save today's date into file\n  '%s'\n" $DATE_FILE >&2
-	printf "  and use this date as the last milestone for the next submission. If the file can't be found\n" >&2
-	printf "  the last submission date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
+	printf "  The last run date is appended after all the files have been uploaded to oclc\n  '%s'\n" >&2
+	printf "  If the file can't be found\n" >&2
+	printf "  the last run date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
 	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the \n" >&2
 	printf "  last uncommented line. A comment line starts with '#'.\n" >&2
 	printf "  \n"                                            >&2
@@ -464,9 +465,7 @@ elif [ $# -eq 1 ] || [ $# -eq 2 ]; then # .
 else  # more than 2 arguments suggests user may not be familiar with this application.
 	show_usage
 fi
-# That is for all users, but on update we just want the user since the last time we did this.
-# Commented out so we can test without a complicated reset.
-echo $END_DATE >> $DATE_FILE 
+# The updating of the last run date is done by oclc2driver.sh on ilsdev1.epl.ca when it runs successfully. 
 printf "done\n\n" >&2
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 printf "[%s] %s\n" $DATE_TIME "INIT:exit" >>$LOG

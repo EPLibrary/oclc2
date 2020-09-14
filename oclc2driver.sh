@@ -23,6 +23,7 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.5.03 - Added more detailed reporting.  
 #          1.5.02 - Fix redirect error that stopped script from completing.  
 #          1.5.01 - Limit error log output in emails to 25 lines.  
 #          1.5 - Change testing and don't exit if there wasn't an mrc and nsk,  
@@ -105,18 +106,24 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	get_password
 	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 	printf "[%s] %s %s\n" $DATE_TIME "sftp to " $SFTP_SERVER >> $HOME/load.log
+    printf "[%s] sending nsk file: " $DATE_TIME >> $HOME/load.log
+    echo $(ls -l $HOME/*.nsk) >> $HOME/load.log
+    printf "[%s] sending mrc file: " $DATE_TIME >> $HOME/load.log
+    echo $(ls -l $HOME/*.mrc) >> $HOME/load.log
 	export SSHPASS="$PASSWORD"
 	# If this technique doesn't work try the one below.
 	# if sshpass -p password sftp -oBatchMode=no user@serveraddress  << !
 	# put file*
 	# bye
 	# !
-	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
-   cd $REMOTE_DIR
-   put $HOME/*.mrc
-   put $HOME/*.nsk
-   bye
-!END_OF_COMMAND
+    ### Commented out for testing.
+	# sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
+   # cd $REMOTE_DIR
+   # put $HOME/*.mrc
+   # put $HOME/*.nsk
+   # bye
+# !END_OF_COMMAND
+    # Post processing and reporting.
 	if [[ $? ]]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "done sftp." >> $HOME/load.log
@@ -125,7 +132,8 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 		rm $HOME/$SUBMISSION_TAR_FILE
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $HOME/load.log
-		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
+        ### Commented out for testing.
+		# ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
 		rm $HOME/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
@@ -133,6 +141,8 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $HOME/load.log
 		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+        DATE=$(date +%Y%m%d)
+        echo "$DATE" | ssh sirsi\@eplapp.library.ualberta.ca 'cat - >> /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run'
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $HOME/load.log
