@@ -23,6 +23,9 @@
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
 # Rev:
+#          1.6.00 - This script now updates the oclc2.last.run file once the 
+#                   submission has successfully been sftp'd.   
+#                   File found in /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2.
 #          1.5.03 - Added more detailed reporting.  
 #          1.5.02 - Fix redirect error that stopped script from completing.  
 #          1.5.01 - Limit error log output in emails to 25 lines.  
@@ -116,13 +119,14 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 	# put file*
 	# bye
 	# !
-    ### Commented out for testing.
-	# sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
-   # cd $REMOTE_DIR
-   # put $HOME/*.mrc
-   # put $HOME/*.nsk
-   # bye
-# !END_OF_COMMAND
+    ### Comment out the next 6 lines to test without sending files to OCLC.
+	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
+   cd $REMOTE_DIR
+   put $HOME/*.mrc
+   put $HOME/*.nsk
+   bye
+!END_OF_COMMAND
+    ### Comment out above to test without sending files to OCLC.
     # Post processing and reporting.
 	if [[ $? ]]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
@@ -132,8 +136,8 @@ if [ -f "$HOME/$SUBMISSION_TAR_FILE" ]; then
 		rm $HOME/$SUBMISSION_TAR_FILE
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $HOME/load.log
-        ### Commented out for testing.
-		# ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
+        ### Commented out the next line if you don't want to remove submission.tar file from production.
+		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $HOME/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $HOME/load.log
 		rm $HOME/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
