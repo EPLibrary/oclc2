@@ -1,3 +1,9 @@
+== Project update Mon Sep 14 12:41:48 MDT 2020
+/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run is now 
+updated by oclc2driver.sh when it has finally finished submitting 
+files. This will ensure that if it fails to run, oclc2.sh will go 
+back in time to the point where submissions started to fail.
+
 == Project update Wed August 11 2020
 There are some changes to the way that cancels are processed from now on.
 Based on the recommendations of Larry Wolkan of OCLC.org, we will now 
