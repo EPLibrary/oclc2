@@ -1,4 +1,7 @@
-== Project update Mon Sep 14 12:41:48 MDT 2020
+## Project update Fri Oct 16 08:27:50 MDT 2020
+Removed ON-ORDER from exclude locations list.
+
+## Project update Mon Sep 14 12:41:48 MDT 2020
 /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run is now 
 updated by oclc2driver.sh when it has finally finished submitting 
 files. This will ensure that if it fails to run, oclc2.sh will go 
