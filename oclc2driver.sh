@@ -25,7 +25,7 @@
 # Rev:
 #          1.6.00 - This script now updates the oclc2.last.run file once the 
 #                   submission has successfully been sftp'd.   
-#                   File found in /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2.
+#                   File found in /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2.
 #          1.5.03 - Added more detailed reporting.  
 #          1.5.02 - Fix redirect error that stopped script from completing.  
 #          1.5.01 - Limit error log output in emails to 25 lines.  
@@ -78,7 +78,7 @@ REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 hostname=$(hostname)
 printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to $hostname." >> $WORK_DIR_AN/load.log
-scp sirsi\@eplapp.library.ualberta.ca:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
+scp sirsi\@edpl.sirsidynix.net:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
 if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	cd $WORK_DIR_AN
 	# Untar the .mrc and .nsk files.
@@ -137,7 +137,7 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $WORK_DIR_AN/load.log
         ### Commented out the next line if you don't want to remove submission.tar file from production.
-		ssh sirsi\@eplapp.library.ualberta.ca "rm /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
+		ssh sirsi\@edpl.sirsidynix.net "rm /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $WORK_DIR_AN/load.log
 		rm $WORK_DIR_AN/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
@@ -146,7 +146,7 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $WORK_DIR_AN/load.log
 		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
         DATE=$(date +%Y%m%d)
-        echo "$DATE" | ssh sirsi\@eplapp.library.ualberta.ca 'cat - >> /s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run'
+        echo "$DATE" | ssh sirsi\@edpl.sirsidynix.net 'cat - >> /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run'
 	else
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $WORK_DIR_AN/load.log
