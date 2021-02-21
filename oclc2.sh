@@ -63,7 +63,7 @@
 # without assuming any environment settings and we need to use sirsi's.
 ###############################################
 # *** Edit these to suit your environment *** #
-source /s/sirsi/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
+source /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
 VERSION="0.13.00"
 # using /bin/sh causes cron to 'nice' the process at '10'!
@@ -74,7 +74,7 @@ START_DATE=$(transdate -d-7)
 # we will save the date last run as a zero-byte file.
 END_DATE=$(transdate -d-0)
 HISTORY_DIRECTORY=$(getpathname hist)
-WORKING_DIR=/s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
+WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
 ## cd into working directory and create all files relative to there.
 if [ -d "$WORKING_DIR" ]; then
 	cd $WORKING_DIR
