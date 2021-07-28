@@ -22,31 +22,6 @@
 # MA 02110-1301, USA.
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
-# Rev:
-#          0.13.01 - Remove ON-ORDER from exclusion list.
-#          0.13.00 - Make oclc2driver.sh update the last run file.
-#          0.12.01 - Change NSK output file name to include end date, and made variable
-#                    names more meaningful N_MIXED => MIXED_PROJECT_NUMBER and 
-#                    CANCELS_FINAL_FILE => CANCELS_FINAL_FILE_PRE_NSK.
-#          0.12.00 - Fix ugly tarring of submission process.
-#          0.11.00 - Use NSK cancel holdings protocol.
-#          0.10.02 - Optimization of sorting and uniqing cat keys on item selection
-#                    for mixed projects.
-#          0.10.01 - Guard for unfound flexkey.
-#          0.10.00 - Change cancels submission file name as per OCLC recommendations.
-#          0.9.05 - Add more detail to logging.
-#          0.9.04 - Remove mrc files so they don't get resubmitted.
-#          0.9.03 - Remove flex key file before starting. Improved logging.
-#          0.9.02 - Change log directory to home directory.
-#          0.9.01 - Cleaned log output.
-#          0.9 - Introduced time stamp logging of processes for profiling performance.
-#          0.8 - SHELL updated to use bash because cron running sh is 'nice'd to 10.
-#          0.7 - Added absolute pathing for running by cron.
-#          0.6 - Tarball all MARC files with standard name 'submission.tar'.
-#          0.5 - Cancels tested on Production.
-#          0.4 - Bug fix for reading difference between compressed and uncompressed files.
-#          0.3 - Tested on Production.
-#          0.0 - Dev.
 #
 ####################################################
 # This script is the replacement is to accomodate OCLC's DataSync Collections 
@@ -65,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.00_DEV"
+VERSION="2.05.01_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -126,7 +101,7 @@ SUBMISSION_TAR=submission.tar
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
 DATE_FILE=oclc2.last.run
-logit "INIT:init"
+
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
@@ -412,6 +387,7 @@ do
     -c|--cancels)
         shift
         export START_DATE="$1"
+		logit "=== Start"
 		run_cancels
 		clean_cancels
 		exit 0
@@ -419,6 +395,7 @@ do
     -b|--both_mixed_cancels)
 		shift
         export START_DATE="$1"
+		logit "=== Start"
 		run_cancels
 		clean_cancels
 		run_mixed
@@ -432,6 +409,7 @@ do
 	-m|--mixed)
         shift
         export START_DATE="$1"
+		logit "=== Start"
 		run_mixed
 		clean_mixed
 		exit 0
@@ -447,6 +425,8 @@ do
     esac
     shift
 done
+## To get here there were no command line options, so use defaults.
+logit "=== Start"
 run_cancels
 clean_cancels
 run_mixed
