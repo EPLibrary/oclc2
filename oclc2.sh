@@ -129,8 +129,8 @@ usage()
   in the working directory.                   
   Example: 
     $0 
-	$0 -b=20210301         # Run both cancels and mixed back to March 1, 2021.
-	$0 --cancels=20200822  # Run cancels back from August 22 2020.                                
+    $0 -b=20210301         # Run both cancels and mixed back to March 1, 2021.
+    $0 --cancels=20200822  # Run cancels back from August 22 2020.                                
                                               
   Using a single param controls report type, but default date will be $START_DATE 
   you will be asked to confirm the date before starting. 
