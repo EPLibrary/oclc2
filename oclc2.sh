@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.01_DEV"
+VERSION="2.05.02_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -127,7 +127,10 @@ usage()
   If run with no arguments both mixed and cancels will be run from the last run date 
   or for the period covering the last 7 calendar days if there's no last-run-date file 
   in the working directory.                   
-  Example: $0                                 
+  Example: 
+    $0 
+	$0 -b=20210301         # Run both cancels and mixed back to March 1, 2021.
+	$0 --cancels=20200822  # Run cancels back from August 22 2020.                                
                                               
   Using a single param controls report type, but default date will be $START_DATE 
   you will be asked to confirm the date before starting. 
@@ -138,7 +141,7 @@ usage()
 	  (default action) from a given date.
   
   Running the script without flags is the equivelent of
-    $0 -both_mixed_cancels=$START_DATE
+    $0 -b=$START_DATE
                                               
   The date is not checked as a valid date. 
                                               
