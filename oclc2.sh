@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.02_DEV"
+VERSION="2.05.03_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -126,22 +126,23 @@ usage()
                                               
   If run with no arguments both mixed and cancels will be run from the last run date 
   or for the period covering the last 7 calendar days if there's no last-run-date file 
-  in the working directory.                   
-  Example: 
-    $0 
-    $0 -b=20210301         # Run both cancels and mixed back to March 1, 2021.
-    $0 --cancels=20200822  # Run cancels back from August 22 2020.                                
+  in the working directory.                                
                                               
-  Using a single param controls report type, but default date will be $START_DATE 
-  you will be asked to confirm the date before starting. 
+  If no paramaters are provided, the start date will be read as the last non-commented line
+  in $DATE_FILE. If $DATE_FILE doesn't exist the default will be 7 days ago by default.
+  
+  Currently the start date would be $START_DATE 
+   
   Flags:
     -c, -cancels, --cancels [yyyymmdd] - Run cancels report from a given date.                 
     -m, -mixed, --mixed [yyyymmdd] - Run mixed project report from a given date.           
     -b, -both_mixed_cancels, --both_mixed_cancels [yyyymmdd] - Run both cancel and mixed projects
 	  (default action) from a given date.
   
-  Running the script without flags is the equivelent of
-    $0 -b=$START_DATE
+  Examples: 
+    $0                     # Run both cancels and mixed starting from 7 days ago.
+    $0 -b=20210301         # Run both cancels and mixed back to March 1, 2021.
+    $0 --cancels=20200822  # Run cancels back from August 22 2020.
                                               
   The date is not checked as a valid date. 
                                               
