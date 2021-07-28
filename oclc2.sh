@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.03_DEV"
+VERSION="2.05.04_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -391,7 +391,7 @@ do
     -c|--cancels)
         shift
         export START_DATE="$1"
-		logit "=== Start"
+		logit "=== Start ($0, $VERSION)"
 		run_cancels
 		clean_cancels
 		exit 0
@@ -399,7 +399,7 @@ do
     -b|--both_mixed_cancels)
 		shift
         export START_DATE="$1"
-		logit "=== Start"
+		logit "=== Start ($0, $VERSION)"
 		run_cancels
 		clean_cancels
 		run_mixed
@@ -413,7 +413,7 @@ do
 	-m|--mixed)
         shift
         export START_DATE="$1"
-		logit "=== Start"
+		logit "=== Start ($0, $VERSION)"
 		run_mixed
 		clean_mixed
 		exit 0
@@ -430,13 +430,13 @@ do
     shift
 done
 ## To get here there were no command line options, so use defaults.
-logit "=== Start"
+logit "=== Start ($0, $VERSION)"
 run_cancels
 clean_cancels
 run_mixed
 clean_mixed
 # The updating of the last run date is done by oclc2driver.sh on ilsdev1.epl.ca when it runs successfully. 
 logit "done"
-logit "INIT:exit"
+logit "=== End"
 exit 0
 # EOF
