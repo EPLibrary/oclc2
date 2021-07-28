@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.04_DEV"
+VERSION="2.05.05_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
