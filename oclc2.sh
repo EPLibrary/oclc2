@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 ####################################################
 #
 # Bash shell script for project oclc2
@@ -63,10 +63,9 @@
 # without assuming any environment settings and we need to use sirsi's.
 ###############################################
 # *** Edit these to suit your environment *** #
-source /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
+. /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="0.13.00"
-# using /bin/sh causes cron to 'nice' the process at '10'!
+VERSION="2.05.00_DEV"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -75,19 +74,35 @@ START_DATE=$(transdate -d-7)
 END_DATE=$(transdate -d-0)
 HISTORY_DIRECTORY=$(getpathname hist)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
+## Set up logging.
+LOG_FILE="$WORKING_DIR/oclc2.log"
+# Logs messages to STDOUT and $LOG_FILE file.
+# param:  Message to put in the file.
+# param:  (Optional) name of a operation that called this function.
+logit()
+{
+    local message="$1"
+    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    if [ -t 0 ]; then
+        # If run from an interactive shell message STDOUT and LOG_FILE.
+        echo -e "[$time] $message" | tee -a $LOG_FILE
+    else
+        # If run from cron do write to log.
+        echo -e "[$time] $message" >>$LOG_FILE
+    fi
+}
 ## cd into working directory and create all files relative to there.
 if [ -d "$WORKING_DIR" ]; then
 	cd $WORKING_DIR
 else
-	echo "**error: unable to move to the working directory $WORKING_DIR. Exiting"
+	logit "**error: unable to move to the working directory $WORKING_DIR. Exiting" 
 	exit 1
 fi
-LOG=oclc2.$END_DATE.$$.log
 CANCELS_HISTORY_FILE_SELECTION=oclc2.cancels.history.file.lst
 CANCELS_FLEX_OCLC_FILE=oclc2.cancels.flexkeys.OCLCnumber.lst
 CANCELS_UNFOUND_FLEXKEYS=oclc2.cancels.unfound.flexkeys.lst
 CANCELS_DIFF_FILE=oclc2.cancels.diff.lst
-ERROR_LOG=err.log
+
 ## Output file that is used to convert to NSK. See $CANCELS_SUBMISSION for NSK file name.
 CANCELS_FINAL_FILE_PRE_NSK=oclc2.cancels.final.lst
 ### Variables specially for 'mixed' projects.
@@ -111,8 +126,7 @@ SUBMISSION_TAR=submission.tar
 # This script features the ability to collect new users since the last time it ran.
 # We save a file with today's date, and then use that with -f on seluser.
 DATE_FILE=oclc2.last.run
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:init" >>$LOG 
+logit "INIT:init"
 if [[ -s "$DATE_FILE" ]]; then
 	# Grab the last line of the file that doesn't start with a hash '#'.
 	START_DATE=$(cat "$DATE_FILE" | pipe.pl -Gc0:^# -L-1)
@@ -121,6 +135,49 @@ fi
 ### modifications, or 'cancels', indicating to upload items deleted from the catalog during
 ### the specified time frame. The other accepted command is 'exit', which will, not surprisingly,
 ### exit the script.
+
+# Usage message then exits.
+# param:  none.
+# return: exits with status 99
+# Prints out usage message.
+usage()
+{
+    cat << EOFU!
+ Usage: $0 [flags]
+                  
+  $0 collects modified (created or modified) and/or deleted bibliograhic 
+  metadata for OCLC's DataSync Collection service. This script does not upload to OCLC. 
+  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.) 
+                                              
+  If run with no arguments both mixed and cancels will be run from the last run date 
+  or for the period covering the last 7 calendar days if there's no last-run-date file 
+  in the working directory.                   
+  Example: $0                                 
+                                              
+  Using a single param controls report type, but default date will be $START_DATE 
+  you will be asked to confirm the date before starting. 
+  Flags:
+    -c, -cancels, --cancels [yyyymmdd] - Run cancels report from a given date.                 
+    -m, -mixed, --mixed [yyyymmdd] - Run mixed project report from a given date.           
+    -b, -both_mixed_cancels, --both_mixed_cancels [yyyymmdd] - Run both cancel and mixed projects
+	  (default action) from a given date.
+  
+  Running the script without flags is the equivelent of
+    $0 -both_mixed_cancels=$START_DATE
+                                              
+  The date is not checked as a valid date. 
+                                              
+  The last run date is appended after all the files have been uploaded to oclc.
+  If the file can't be found the last run date defaults to 7 days ago, and a new file 
+  with today's date will be created.
+  
+  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the  
+  last uncommented line. A comment line starts with '#'. 
+                                              
+  The last-run-date file is not essential and will be recreated if it is deleted, however 
+  it is useful in showing the chronology of times the process has been run.                         
+EOFU!
+}
 
 # Outputs OCLC numbers in raw NSK format ready for conversion to CSV.
 # This subroutine is used in the Cancels process only.
@@ -131,12 +188,10 @@ printNumberSearchKeyRawFormat()
 {
 	local oclcNumber=$(echo "$1" | pipe.pl -oc1)
 	if [[ -z "${oclcNumber// }" ]]; then
-		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >&2
-		printf "* warning no OCLC number found in record %s, skipping.\n" $1 >>$ERROR_LOG
-		return 1
+		logit "* warning no OCLC number found in record %s, skipping."
+	else
+		echo "|$oclcNumber"  >>$CANCELS_FINAL_FILE_PRE_NSK # like '|(OCoLC)32013207'
 	fi
-	echo "|$oclcNumber"  >>$CANCELS_FINAL_FILE_PRE_NSK # like '|(OCoLC)32013207'
-	return 0
 }
 
 # Collects all the deleted records from history files.
@@ -144,9 +199,8 @@ printNumberSearchKeyRawFormat()
 # return: always returns 0.
 run_cancels()
 {
-	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_cancels()::init" >>$LOG
-	printf "running cancels from %s to %s\n" $START_DATE $END_DATE >&2
+	logit "run_cancels()::init"
+	logit "running cancels from $START_DATE to $END_DATE"
 	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
 		rm "$CANCELS_FLEX_OCLC_FILE"
 	fi
@@ -156,18 +210,16 @@ run_cancels()
 	# and grep out where records were deleted. Let's find those history files first.
 	# List all the files in the hist directory, start searching for the string $start_date and once found
 	# continue to output until DATE_TODAY is found.
-	printf "compiling list of files to search %s to %s\n" $START_DATE $END_DATE >&2
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_cancels()::egrep." >>$LOG
+	logit "compiling list of files to search $START_DATE to $END_DATE"
+	logit "run_cancels()::egrep."
 	# The test server shows that if we don't have an initial file name match for -X, -Y -M fail.
 	ls $HISTORY_DIRECTORY | egrep -e "hist(\.Z)?$" | pipe.pl -C"c0:ge$start_date" | pipe.pl -C"c0:le$end_date"  >$CANCELS_HISTORY_FILE_SELECTION
 	# Read in the list of history files from $HIST_DIR one-per-line (single string per line)
 	for h_file in $(cat $CANCELS_HISTORY_FILE_SELECTION | tr "\n" " ")
 	do
 		# Search the arg list of log files for entries of remove item (FV) and remove title option (NOY).
-		printf "searching history file %s/%s for deleted titles.\n" $HISTORY_DIRECTORY $h_file >&2
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::zcat.egrep" >>$LOG
+		logit "searching history file $HISTORY_DIRECTORY/$h_file for deleted titles."
+		logit "run_cancels()::zcat.egrep"
 		# E201405271803190011R ^S75FVFFADMIN^FEEPLMNA^FcNONE^NQ31221079015892^NOY^NSEPLJPL^IUa554837^tJ554837^aA(OCoLC)56729751^^O00099
 		# Extract the cat key and Flex key from the history logs.
 		# Using grep initially is faster then let pipe convert '^' to '|', and grep any field with IU or aA and
@@ -180,22 +232,19 @@ run_cancels()
 		fi
 		## before:
 		# 20170401|S44FVFFADMIN|FEEPLMNA|FcNONE|NQ31221105319052|NOY|NSEPLLHL|IUa1113832|tJ1113832|aA(OCoLC)640340037||O00102
-		printf "collecting all TCN and OCLC numbers.\n" >&2
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl" >>$LOG
+		logit "collecting all TCN and OCLC numbers."
+		logit "run_cancels()::pipe.pl"
 		cat /tmp/oclc2.tmp.zcat.$$ | pipe.pl -W'\^' -m"c0:_########_" | pipe.pl -C"c0:ge$START_DATE" -U | pipe.pl -g"any:IU|aA" -5 2>>$CANCELS_FLEX_OCLC_FILE >/dev/null
 		## after:
 		# IUa999464|aA(OCoLC)711988979
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::cleaning up" >>$LOG
+		logit "run_cancels()::cleaning up"
 		rm /tmp/oclc2.tmp.zcat.$$
 	done
 	# Now we should have a file like this.
 	# IUa1848301|aAocn844956543
 	# Clean it for the next selection.
 	if [ -s "$CANCELS_FLEX_OCLC_FILE" ]; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl" >>$LOG
+		logit "run_cancels()::pipe.pl"
 		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -m'c0:__#,c1:__#' -tc1 -zc0,c1 >/tmp/oclc2.tmp.$$
 		mv /tmp/oclc2.tmp.$$ $CANCELS_FLEX_OCLC_FILE
 		# Should now look like this.
@@ -206,19 +255,16 @@ run_cancels()
 		# Pass these Flex keys to selcatalog and collect the error 111. 
 		# **error number 111 on catalog not found, key=526625 flex=ADI-7542
 		# We aren't interested in the ones that are still in the catalog so send them to /dev/null.
-		printf "searching catalog for missing catalog keys.\n" >&2
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::selcatalog looking for error 111s" >>$LOG
+		logit "searching catalog for missing catalog keys."
+		logit "run_cancels()::selcatalog looking for error 111s"
 		cat $CANCELS_FLEX_OCLC_FILE | pipe.pl -oc0 -P | selcatalog -iF >/dev/null 2>$CANCELS_UNFOUND_FLEXKEYS
 		# The trailing pipe will be useful to sep values in the following diff.pl command.
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::pipe.pl parse out flex keys" >>$LOG
+		logit "run_cancels()::pipe.pl parse out flex keys"
 		cat $CANCELS_UNFOUND_FLEXKEYS | pipe.pl -W'flex=' -zc1 -oc1 -P >/tmp/oclc2.tmp.$$
 		mv /tmp/oclc2.tmp.$$ $CANCELS_UNFOUND_FLEXKEYS
 		local count=$(cat $CANCELS_UNFOUND_FLEXKEYS | wc -l | pipe.pl -tc0)
-		printf "submission includes %s cancelled bib records.\n" $count >&2
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::diff.pl" >>$LOG
+		logit "submission includes $count cancelled bib records."  
+		logit "run_cancels()::diff.pl"
 		# Somehow we can end up with a flex key that can't be found. Probably a catalog error, but guard for it by 
 		# not passing flex keys that don't have OCLC numbers, which can't be used anyway.
 		echo "$CANCELS_UNFOUND_FLEXKEYS and $CANCELS_FLEX_OCLC_FILE" | diff.pl -ec0 -fc0 -mc1 | pipe.pl -zc1 >$CANCELS_DIFF_FILE
@@ -228,25 +274,21 @@ run_cancels()
 		if [[ -s "$CANCELS_FINAL_FILE_PRE_NSK" ]]; then
 			rm $CANCELS_FINAL_FILE_PRE_NSK
 		fi
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printNumberSearchKeyRawFormat.init" >>$LOG
+		logit "run_cancels()::printNumberSearchKeyRawFormat.init"
 		local dot_count=0
 		while read -r file_line
 		do
 			if ! printNumberSearchKeyRawFormat $file_line
 			then
-				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >&2
-				printf "** error '%s' malformed.\n" $CANCELS_DIFF_FILE >>$ERROR_LOG
-				let dot_count=dot_count+1
+				logit "** error '$CANCELS_DIFF_FILE' malformed."
+				dot_count=$((dot_count+1))
 			fi
 		done <$CANCELS_DIFF_FILE
-        printf "[%s] %s\n" $DATE_TIME " there were $dot_count errors while processing." >>$LOG
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels()::printNumberSearchKeyRawFormat.exit" >>$LOG
+        logit " there were $dot_count errors while processing."
+		logit "run_cancels()::printNumberSearchKeyRawFormat.exit"
 		# Now to make the MARC output from the flat file.
-		printf "creating marc file.\n" >&2
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "run_cancels():pipe output" >>$LOG
+		logit "creating marc file."
+		logit "run_cancels():pipe output"
 		## This converts the cancel flat file into a marc file ready to send to OCLC.
 		## $CANCELS_FINAL_FILE_PRE_NSK needs to be a list similar to the following.
 		## |(OCoLC) 12345678
@@ -254,15 +296,14 @@ run_cancels()
 		## |(OCoLC) 12345676
 		## | ...
 		## Adding -gc1:"OCoLC" because non-OCLC numbers appear in the list. 
-		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -gc1:"OCoLC" -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$ERROR_LOG
+		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -gc1:"OCoLC" -TCSV_UTF-8:"LSN,OCLC_Number" > $CANCELS_SUBMISSION 2>>$LOG_FILE
 		# Log the rejected numbers.
-		echo -e "the following records were detected but are not valid OCLC numbers\n-- START REJECT:\n" >>$ERROR_LOG
-		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -Gc1:"OCoLC" >>$ERROR_LOG
-		echo -e "-- END REJECT:\n" >>$ERROR_LOG
+		logit "the following records were detected but are not valid OCLC numbers."
+		logit "-- START REJECT:" 
+		cat $CANCELS_FINAL_FILE_PRE_NSK | pipe.pl -Gc1:"OCoLC" >>$LOG_FILE
+		logit "-- END REJECT:"
 	fi
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_cancels()::exit" >>$LOG
-	return 0
+	logit "run_cancels()::exit"
 }
 
 # Collects all the bib records that were added or modified since the last time it was run.
@@ -270,34 +311,26 @@ run_cancels()
 # return: always returns 0.
 run_mixed()
 {
-	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::init" >>$LOG
-	printf "running mixed from %s to %s.\n" $START_DATE $END_DATE >&2
+	logit "run_mixed()::init"
+	logit "running mixed from $START_DATE to $END_DATE."
 	# Since we are selecting all items' catalog keys we should sort and uniq them
 	# In testing the number of cat keys drops from 1.4M to 300K keys.
 	selitem -t"~$NOT_THESE_TYPES" -l"~$NOT_THESE_LOCATIONS" -oC 2>/dev/null | sort | uniq >/tmp/oclc2.tmp.$$
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::selcatalog.CREATE" >>$LOG
+	logit "run_mixed()::selcatalog.CREATE"
 	## select all the records that were created since the start date.
-	printf "adding keys that were created since %s.\n" $START_DATE >&2
+	logit "adding keys that were created since $START_DATE."
 	## Select all cat keys that were created after the start date.
-	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::selcatalog.MODIFIED" >>$LOG
+	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -p">$START_DATE" -oC >$MIXED_CATKEYS_FILE 2>>$LOG_FILE
+	logit "run_mixed()::selcatalog.MODIFIED"
 	## Now the modified records.
-	printf "adding keys that were modified since %s.\n" $START_DATE >&2
-	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$ERROR_LOG
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::sort.uniq" >>$LOG
+	logit "adding keys that were modified since $START_DATE."
+	cat /tmp/oclc2.tmp.$$ | selcatalog -iC -r">$START_DATE" -oC >>$MIXED_CATKEYS_FILE 2>>$LOG_FILE
+	logit "run_mixed()::sort.uniq"
 	cat $MIXED_CATKEYS_FILE | sort | uniq >/tmp/oclc2.tmp.$$
 	mv /tmp/oclc2.tmp.$$ $MIXED_CATKEYS_FILE
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::catalogdump" >>$LOG
-	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$ERROR_LOG
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "run_mixed()::exit" >>$LOG
-	## TODO: Remove return statements.
-	return 0
+	logit "run_mixed()::catalogdump"
+	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$LOG_FILE
+	logit "run_mixed()::exit"
 }
 # Cleans up temp files after process run.
 # param:  none.
@@ -305,26 +338,23 @@ run_mixed()
 #         couldn't be found.
 clean_mixed()
 {
-	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "clean_mixed()::init.tar" >>$LOG
+	logit "clean_mixed()::init.tar"
 	if [ -s "$MIXED_FINAL_MARC_FILE" ]; then
 		if [ -s "$SUBMISSION_TAR" ]; then
-			tar uvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+			tar uvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$LOG_FILE
 		else
-			tar cvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+			tar cvf $SUBMISSION_TAR $MIXED_FINAL_MARC_FILE >>$LOG_FILE
 		fi
 		# Once added to the submission tarball get rid of the mrc files so they don't get re-submitted.
 		rm "$MIXED_FINAL_MARC_FILE"
 	else
-		printf "MARC file: '%s' was not created.\n" $MIXED_FINAL_MARC_FILE >>$ERROR_LOG
+		logit "MARC file: '$MIXED_FINAL_MARC_FILE' was not created."
 		return 1
 	fi
 	if [ -s "$MIXED_CATKEYS_FILE" ]; then
 		rm $MIXED_CATKEYS_FILE
 	fi
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "clean_mixed()::exit" >>$LOG
-	return 0
+	logit "clean_mixed()::exit"
 }
 # Cleans up temp files after process run.
 # param:  none.
@@ -332,18 +362,17 @@ clean_mixed()
 #         couldn't be found.
 clean_cancels()
 {
-	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "clean_cancels()::init" >>$LOG
+	logit "clean_cancels()::init"
 	if [ -s "$CANCELS_SUBMISSION" ]; then
 		if [ -s "$SUBMISSION_TAR" ]; then
-			tar uvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$ERROR_LOG
+			tar uvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$LOG_FILE
 		else
-			tar cvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$ERROR_LOG
+			tar cvf $SUBMISSION_TAR $CANCELS_SUBMISSION >>$LOG_FILE
 		fi
 		# Once added to the submission tarball get rid of the mrc files so they don't get re-submitted.
 		rm "$CANCELS_SUBMISSION"
 	else
-		printf "MARC file: '%s' was not created.\n" $CANCELS_SUBMISSION >>$ERROR_LOG
+		logit "MARC file: '$CANCELS_SUBMISSION' was not created.\n"  
 		return 1
 	fi
 	if [ -s "$CANCELS_HISTORY_FILE_SELECTION" ]; then
@@ -361,114 +390,69 @@ clean_cancels()
 	if [ -s "$CANCELS_FINAL_FILE_PRE_NSK" ]; then
 		rm $CANCELS_FINAL_FILE_PRE_NSK
 	fi
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "clean_cancels()::exit" >>$LOG
-	return 0
+	logit "clean_cancels()::exit"
 }
-# Ask if for the date if user using no args.
-# If the user has not specified any args, they will be asked what action they want to
-# do, but we also need to confirm the last milestone date.
-# param:  none
-# return: 0
-ask_mod_date()
-{
-	local DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "ask_mod_date()::init" >>$LOG
-	printf "Do you want to continue with processing items from the last milestone date: %s? [y]/n " $START_DATE >&2
-	read use_date
-	case "$use_date" in
-		[nN])
-			printf "\nEnter new date: " >&2
-			read START_DATE
-			;;
-		*)
-			printf "continuing with last milestone date.\n" >&2
-			;;
-	esac
-	printf "Date set to %s\n" $START_DATE >&2
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s\n" $DATE_TIME "ask_mod_date()::exit" >>$LOG
-	return 0
-}
-# Usage message then exits.
-# param:  none.
-# return: exits with status 99
-show_usage()
-{
-	printf "Usage: $0 [c|m|b[YYYYMMDD]]\n"                   >&2
-	printf "  $0 collects modified (created or modified) and/or deleted bibliograhic\n" >&2
-	printf "  metadata for OCLC's DataSync Collection service. This script does not upload to OCLC.\n" >&2
-	printf "  (See oclc2driver.sh for more information about loading bib records to DataSync Collections.)\n" >&2
-	printf "  \n"                                            >&2
-	printf "  If run with no arguments both mixed and cancels will be run from the last run date\n" >&2
-	printf "  or for the period covering the last 7 calendar days if there's no last-run-date file\n" >&2
-	printf "  in the working directory.\n"                   >&2
-	printf "  Example: $0 \n"                                >&2
-	printf "  \n"                                            >&2
-	printf "  Using a single param controls report type, but default date will be %s and\n" $START_DATE >&2
-	printf "  you will be asked to confirm the date before starting.\n" >&2
-	printf "  Example: $0 [c|m|b]\n"                         >&2
-	printf "    * c - Run cancels report.\n"                 >&2
-	printf "    * m - Run mixed project report.\n"           >&2
-	printf "    * b - Run both cancel and mixed projects (default action).\n" >&2
-	printf "  \n"                                            >&2
-	printf "  Using a 2 params allows selection of report type and milestone since last submission.\n" >&2
-	printf "  Example: $0 [c|m|b] 20170101\n"                >&2
-	printf "  (See above for explaination of flags). The date is not checked as a valid date but\n" >&2
-	printf "  will throw an error if not a valid ANSI date format of 'YYYYMMDD'.\n" >&2
-	printf "  \n"                                            >&2
-	printf "  The last run date is appended after all the files have been uploaded to oclc\n  '%s'\n" >&2
-	printf "  If the file can't be found\n" >&2
-	printf "  the last run date defaults to 7 days ago, and a new file with today's date will be created.\n" >&2
-	printf "  Note that all dates must be in ANSI format (YYYYMMDD), must be the only value on the \n" >&2
-	printf "  last uncommented line. A comment line starts with '#'.\n" >&2
-	printf "  \n"                                            >&2
-	printf "  The last-run-date file is not essential and will be recreated if it is deleted, however\n" >&2
-	printf "  it is useful in showing the chronology of times the process has been run.\n" >&2
-	printf "  \n"                                            >&2
-	printf "  Version: %s\n" $VERSION                        >&2
-	exit 99
-}
-if [ $# -eq 2 ]; then
-	# The second value on the command line is supposed to be an ANSI date like YYYYMMDD.
-	START_DATE=$2
-fi
-# Run all functions. This allows the process to be cronned and not require user input to run.
-if [ $# -eq 0 ] ; then
-	run_cancels
-	clean_cancels
-	run_mixed
-	clean_mixed
-elif [ $# -eq 1 ] || [ $# -eq 2 ]; then # .
-	case "$1" in
-		[cC])
-			ask_mod_date
-			run_cancels
-			clean_cancels
-			;;
-		[mM])
-			ask_mod_date
-			run_mixed
-			clean_mixed
-			;;
-		[bB])
-			ask_mod_date
-			run_cancels
-			clean_cancels
-			run_mixed
-			clean_mixed
-			;;
-		*)
-			printf "** error unsupported option '%s'.\n" $1 >&2
-			show_usage
-			;;
-	esac
-else  # more than 2 arguments suggests user may not be familiar with this application.
-	show_usage
-fi
+
+### Check input parameters.
+# $@ is all command line parameters passed to the script.
+# -o is for short options like -v
+# -l is for long options with double dash like --version
+# the comma separates different long options
+# -a is for long options with single dash like -version
+options=$(getopt -l "cancels:,both_mixed_cancels:,help,mixed:,version" -o "c:b:hm:v" -a -- "$@")
+if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
+# set --:
+# If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
+# are set to the arguments, even if some of them begin with a ‘-’.
+eval set -- "$options"
+
+while true
+do
+    case $1 in
+    -c|--cancels)
+        shift
+        export START_DATE="$1"
+		run_cancels
+		clean_cancels
+		exit 0
+		;;
+    -b|--both_mixed_cancels)
+		shift
+        export START_DATE="$1"
+		run_cancels
+		clean_cancels
+		run_mixed
+		clean_mixed
+		exit 0
+		;;
+    -h|--help)
+        usage
+        exit 0
+        ;;
+	-m|--mixed)
+        shift
+        export START_DATE="$1"
+		run_mixed
+		clean_mixed
+		exit 0
+		;;
+    -v|--version)
+        echo "$0 version: $VERSION"
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+    esac
+    shift
+done
+run_cancels
+clean_cancels
+run_mixed
+clean_mixed
 # The updating of the last run date is done by oclc2driver.sh on ilsdev1.epl.ca when it runs successfully. 
-printf "done\n\n" >&2
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:exit" >>$LOG
+logit "done"
+logit "INIT:exit"
 exit 0
 # EOF

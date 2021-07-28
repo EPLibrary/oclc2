@@ -26,17 +26,17 @@
 ####################################################
 # Change comment below for appropriate server.
 PRODUCTION_SERVER=edpl.sirsidynix.net
-TEST_SERVER=edpl-t.library.ualberta.ca
+TEST_SERVER=edpltest.sirsidynix.net
 USER=sirsi
-REMOTE=~/Unicorn/EPLwork/cronjobscripts/OCLC2/
-LOCAL=~/projects/oclc2/
+REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
+LOCAL=~/projects/oclc2
 APP=oclc2.sh
 README=Readme.md
 
 test: ${APP}
-	scp ${LOCAL}${APP} ${USER}@${TEST_SERVER}:${REMOTE}
-	scp ${LOCAL}${README} ${USER}@${TEST_SERVER}:${REMOTE}
+	scp ${LOCAL}/${APP} ${USER}@${TEST_SERVER}:${REMOTE}
+	scp ${LOCAL}/${README} ${USER}@${TEST_SERVER}:${REMOTE}
 production: test
-	scp ${LOCAL}${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
-	scp ${LOCAL}${README} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
+	scp ${LOCAL}/${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
+	scp ${LOCAL}/${README} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
 
