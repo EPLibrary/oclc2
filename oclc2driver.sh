@@ -42,7 +42,7 @@ PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="0.1.04_DEV"
+VERSION="0.1.04"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -111,18 +111,18 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	# bye
 	# !
     ### Comment out the next 6 lines to test without sending files to OCLC.
-# 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
-# cd $REMOTE_DIR
-# put *.mrc
-# put *.nsk
-# bye
-# !END_OF_COMMAND
-	### @TODO remove line below after testing.
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
 cd $REMOTE_DIR
-dir
+put *.mrc
+put *.nsk
 bye
 !END_OF_COMMAND
+	### lines below for testing.
+# 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
+# cd $REMOTE_DIR
+# dir
+# bye
+# !END_OF_COMMAND
     ### Comment out above to test without sending files to OCLC.
     # Post processing and reporting.
 	if [[ $? ]]; then
@@ -131,23 +131,17 @@ bye
 		rm $WORK_DIR_AN/$SUBMISSION_TAR_FILE
 		logit "removing tarball from ILS."
         ### Commented out the next line if you don't want to remove submission.tar file from production.
-		# ssh $SERVER "rm $REMOTE/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
-		### @TODO remove line below after testing.
-		ssh $SERVER "ls $REMOTE/$SUBMISSION_TAR_FILE"
+		ssh $SERVER "rm $REMOTE/$SUBMISSION_TAR_FILE" >> $WORK_DIR_AN/load.log 2>&1
 		rm *.mrc >> $WORK_DIR_AN/load.log 2>&1 # there may not be a mrc if only cancels were run.
 		rm *.nsk >> $WORK_DIR_AN/load.log 2>&1 # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
-		# echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
-		### @TODO remove line below after testing.
-		echo "Files successfully sent to OCLC." $EMAILS
+		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
         DATE=$(date +%Y%m%d)
         echo "$DATE" | ssh $SERVER "cat - >> $REMOTE/oclc2.last.run"
 	else
 		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-		# echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
-		### @TODO remove line below after testing.
-		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" $EMAILS
+		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	logit "**Error: unable to scp '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
