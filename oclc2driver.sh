@@ -22,18 +22,6 @@
 # MA 02110-1301, USA.
 #
 # Author:  Andrew Nisbet, Edmonton Public Library
-# Rev:
-#          1.6.00 - This script now updates the oclc2.last.run file once the 
-#                   submission has successfully been sftp'd.   
-#                   File found in /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2.
-#          1.5.03 - Added more detailed reporting.  
-#          1.5.02 - Fix redirect error that stopped script from completing.  
-#          1.5.01 - Limit error log output in emails to 25 lines.  
-#          1.5 - Change testing and don't exit if there wasn't an mrc and nsk,  
-#                it run in cancel or mixed mode their may not be one or the other.
-#          1.0 - Marc files from EPLAPP are no longer deeply nested.
-#          0.1 - Updated to mail results on completion.
-#          0.0 - Dev.
 #
 #################################################################
 # Manon Barbeau
@@ -44,7 +32,7 @@
 ##       The script will however read only the last line of the file
 ## This script assumes that both a mixed (.mrc file) and cancel (.nsk file) were produced on EPLAPP.
 PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
-SHELL=/bin/bash
+SERVER="sirsi@edpl.sirsidynix.net"
 SFTP_USER=fx_cnedm
 SFTP_SERVER=filex-r3.oclc.org
 REMOTE_DIR=/xfer/metacoll/in/bib
@@ -53,7 +41,8 @@ PASSWORD_FILE=$WORK_DIR_AN/oclc2.password.txt
 PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
-VERSION="0.1.01_DEV"
+REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
+VERSION="0.1.02_DEV"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -61,7 +50,7 @@ get_password()
 	# Tests, then reads the password file which is expected to be in the current working directory.
 	if [ ! -s "$PASSWORD_FILE" ]; then
 		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s %s\n" $DATE_TIME "SCP: ** error unable to SFTP results becaues I can't find the password file:" $PASSWORD_FILE >> $WORK_DIR_AN/load.log
+		printf "[%s] %s %s\n" $DATE_TIME "SCP: ** error unable to SFTP results because I can't find the password file:" $PASSWORD_FILE >> $WORK_DIR_AN/load.log
 		exit 1
 	fi
 	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -zc0 -L-1)
@@ -91,11 +80,10 @@ logit()
 }
 ################ end Functions
 logit "== Starting $0 version $VERSION"
-REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 # Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ilsdev/projects/oclc2'.
 hostname=$(hostname)
-logit "SCP: copying submission tarball to $hostname."
-scp sirsi\@edpl.sirsidynix.net:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
+logit "SCP: copying submission tarball from $REMOTE $hostname."
+scp $SERVER:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
 if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	cd $WORK_DIR_AN
 	# Untar the .mrc and .nsk files.
@@ -132,10 +120,16 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	# bye
 	# !
     ### Comment out the next 6 lines to test without sending files to OCLC.
+# 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
+# cd $REMOTE_DIR
+# put $WORK_DIR_AN/*.mrc
+# put $WORK_DIR_AN/*.nsk
+# bye
+# !END_OF_COMMAND
+	### @TODO remove line below after testing.
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
 cd $REMOTE_DIR
-put $WORK_DIR_AN/*.mrc
-put $WORK_DIR_AN/*.nsk
+dir
 bye
 !END_OF_COMMAND
     ### Comment out above to test without sending files to OCLC.
@@ -146,18 +140,24 @@ bye
 		rm $WORK_DIR_AN/$SUBMISSION_TAR_FILE
 		logit "removing tarball from EPLAPP."
         ### Commented out the next line if you don't want to remove submission.tar file from production.
-		ssh sirsi\@edpl.sirsidynix.net "rm /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
+		# ssh $SERVER "rm $REMOTE/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
+		### @TODO remove line below after testing.
+		ssh $SERVER "ls $REMOTE/$SUBMISSION_TAR_FILE"
 		logit "removing mrc files."
 		rm $WORK_DIR_AN/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
 		rm $WORK_DIR_AN/*.nsk 2>&1>/dev/null # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
-		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+		# echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+		### @TODO remove line below after testing.
+		echo "Files successfully sent to OCLC." $EMAILS
         DATE=$(date +%Y%m%d)
-        echo "$DATE" | ssh sirsi\@edpl.sirsidynix.net 'cat - >> /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run'
+        echo "$DATE" | ssh $SERVER 'cat - >> $REMOTE/oclc2.last.run'
 	else
 		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		# echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		### @TODO remove line below after testing.
+		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" $EMAILS
 	fi
 else
 	logit "**Error: unable to scp '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
