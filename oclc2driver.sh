@@ -80,12 +80,13 @@ logit()
 }
 ################ end Functions
 logit "== Starting $0 version $VERSION"
-# Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ilsdev/projects/oclc2'.
 hostname=$(hostname)
+logit "changing to '$WORK_DIR_AN' on '$hostname'"
+cd $WORK_DIR_AN || exit 1
+# Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ilsdev/projects/oclc2'.
 logit "SCP: copying submission tarball from $REMOTE $hostname."
-scp $SERVER:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
-if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
-	cd $WORK_DIR_AN
+scp $SERVER:/$REMOTE/$SUBMISSION_TAR_FILE 
+if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	# Untar the .mrc and .nsk files.
 	tar xvf $SUBMISSION_TAR_FILE
 	if ls *.mrc 2>&1>/dev/null; then
@@ -110,9 +111,9 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	get_password
 	logit "sftp to $SFTP_SERVER"
     logit "sending nsk file"
-    echo $(ls -l $WORK_DIR_AN/*.nsk) >> $WORK_DIR_AN/load.log
+    echo $(ls -l *.nsk) >> $WORK_DIR_AN/load.log
     logit "sending mrc file"
-    echo $(ls -l $WORK_DIR_AN/*.mrc) >> $WORK_DIR_AN/load.log
+    echo $(ls -l *.mrc) >> $WORK_DIR_AN/load.log
 	export SSHPASS="$PASSWORD"
 	# If this technique doesn't work try the one below.
 	# if sshpass -p password sftp -oBatchMode=no user@serveraddress  << !
@@ -122,8 +123,8 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
     ### Comment out the next 6 lines to test without sending files to OCLC.
 # 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
 # cd $REMOTE_DIR
-# put $WORK_DIR_AN/*.mrc
-# put $WORK_DIR_AN/*.nsk
+# put *.mrc
+# put *.nsk
 # bye
 # !END_OF_COMMAND
 	### @TODO remove line below after testing.
@@ -144,8 +145,8 @@ bye
 		### @TODO remove line below after testing.
 		ssh $SERVER "ls $REMOTE/$SUBMISSION_TAR_FILE"
 		logit "removing mrc files."
-		rm $WORK_DIR_AN/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
-		rm $WORK_DIR_AN/*.nsk 2>&1>/dev/null # there may not be a nsk if only mixed were run.
+		rm *.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
+		rm *.nsk 2>&1>/dev/null # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
 		# echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
 		### @TODO remove line below after testing.
