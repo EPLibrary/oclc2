@@ -42,7 +42,7 @@ PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="0.1.03_DEV"
+VERSION="0.1.04_DEV"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -88,17 +88,11 @@ logit "SCP: copying submission tarball from $REMOTE to $hostname."
 scp $SERVER:/$REMOTE/$SUBMISSION_TAR_FILE .
 if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	# Untar the .mrc and .nsk files.
-	tar xvf $SUBMISSION_TAR_FILE
-	if ls *.mrc >> $WORK_DIR_AN/load.log 2>&1; then
-		logit "TAR: un-tarring MRC file from ILS."
+	if tar xvf $SUBMISSION_TAR_FILE >> $WORK_DIR_AN/load.log 2>&1; then
+		logit "$SUBMISSION_TAR_FILE un-tarred successfully"
 	else
 		logit "TAR: failed to un-tar MRC file from ILS. Did you run oclc2.sh in mix mode?"
-	fi
-	# Test for NSK file
-	if ls *.nsk >> $WORK_DIR_AN/load.log 2>&1; then
-		logit "TAR: un-tarring nsk file from ILS."
-	else
-		logit "TAR: failed to un-tar nsk file from ILS. Did you run oclc.sh in cancel mode?"
+		exit 1
 	fi
     if ! ls *.nsk >/dev/null 2>&1; then
         if ! ls *.mrc >/dev/null  2>&1; then
@@ -132,15 +126,14 @@ bye
     ### Comment out above to test without sending files to OCLC.
     # Post processing and reporting.
 	if [[ $? ]]; then
-		logit "done sftp."
-		logit "removing tarball: '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
+		logit "sftp successful"
+		logit "cleaning up '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
 		rm $WORK_DIR_AN/$SUBMISSION_TAR_FILE
 		logit "removing tarball from ILS."
         ### Commented out the next line if you don't want to remove submission.tar file from production.
 		# ssh $SERVER "rm $REMOTE/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
 		### @TODO remove line below after testing.
 		ssh $SERVER "ls $REMOTE/$SUBMISSION_TAR_FILE"
-		logit "removing mrc files."
 		rm *.mrc >> $WORK_DIR_AN/load.log 2>&1 # there may not be a mrc if only cancels were run.
 		rm *.nsk >> $WORK_DIR_AN/load.log 2>&1 # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
@@ -148,7 +141,7 @@ bye
 		### @TODO remove line below after testing.
 		echo "Files successfully sent to OCLC." $EMAILS
         DATE=$(date +%Y%m%d)
-        echo "$DATE" | ssh $SERVER 'cat - >> $REMOTE/oclc2.last.run'
+        echo "$DATE" | ssh $SERVER "cat - >> $REMOTE/oclc2.last.run"
 	else
 		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
