@@ -42,7 +42,7 @@ PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="0.1.04"
+VERSION="0.1.05"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -111,7 +111,7 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	# bye
 	# !
     ### Comment out the next 6 lines to test without sending files to OCLC.
-	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
+	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND >> $WORK_DIR_AN/load.log 2>&1
 cd $REMOTE_DIR
 put *.mrc
 put *.nsk
