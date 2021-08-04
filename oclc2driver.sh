@@ -52,7 +52,8 @@ WORK_DIR_AN=/home/ilsdev/projects/oclc2
 PASSWORD_FILE=$WORK_DIR_AN/oclc2.password.txt
 PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
-SUBMISSION_TAR_FILE='submission.tar' 
+SUBMISSION_TAR_FILE='submission.tar'
+VERSION="0.1.01_DEV"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -70,33 +71,45 @@ get_password()
 		exit 1
 	fi
 }
+
+## Set up logging.
+LOG_FILE="$WORK_DIR_AN/load.log"
+# Logs messages to STDOUT and $LOG_FILE file.
+# param:  Message to put in the file.
+# param:  (Optional) name of a operation that called this function.
+logit()
+{
+    local message="$1"
+    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    if [ -t 0 ]; then
+        # If run from an interactive shell message STDOUT and LOG_FILE.
+        echo -e "[$time] $message" | tee -a $LOG_FILE
+    else
+        # If run from cron do write to log.
+        echo -e "[$time] $message" >>$LOG_FILE
+    fi
+}
 ################ end Functions
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "INIT:init" >> $WORK_DIR_AN/load.log
+logit "== Starting $0 version $VERSION"
 REMOTE=s/sirsi/Unicorn/EPLwork/cronjobscripts/OCLC2
 # Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ilsdev/projects/oclc2'.
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
 hostname=$(hostname)
-printf "[%s] %s\n" $DATE_TIME "SCP: copying submission tarball to $hostname." >> $WORK_DIR_AN/load.log
+logit "SCP: copying submission tarball to $hostname."
 scp sirsi\@edpl.sirsidynix.net:/$REMOTE/$SUBMISSION_TAR_FILE $WORK_DIR_AN
 if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	cd $WORK_DIR_AN
 	# Untar the .mrc and .nsk files.
 	tar xvf $SUBMISSION_TAR_FILE
 	if ls *.mrc 2>&1>/dev/null; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring MRC file from EPLAPP." >> $WORK_DIR_AN/load.log
+		logit "TAR: un-tarring MRC file from EPLAPP."
 	else
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar MRC file from EPLAPP. Did you run oclc2.sh in mix mode?" >> $WORK_DIR_AN/load.log
+		logit "TAR: failed to un-tar MRC file from EPLAPP. Did you run oclc2.sh in mix mode?"
 	fi
 	# Test for NSK file
 	if ls *.nsk 2>&1>/dev/null; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: un-tarring nsk file from EPLAPP." >> $WORK_DIR_AN/load.log
+		logit "TAR: un-tarring nsk file from EPLAPP."
 	else
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "TAR: failed to un-tar nsk file from EPLAPP. Did you run oclc.sh in cancel mode?" >> $WORK_DIR_AN/load.log
+		logit "TAR: failed to un-tar nsk file from EPLAPP. Did you run oclc.sh in cancel mode?"
 	fi
     if ! ls *.nsk 2>&1>/dev/null; then
         if ! ls *.mrc 2>&1>/dev/null; then
@@ -107,11 +120,10 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
     fi
 	# Start the SFTP process.
 	get_password
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s %s\n" $DATE_TIME "sftp to " $SFTP_SERVER >> $WORK_DIR_AN/load.log
-    printf "[%s] sending nsk file: " $DATE_TIME >> $WORK_DIR_AN/load.log
+	logit "sftp to $SFTP_SERVER"
+    logit "sending nsk file"
     echo $(ls -l $WORK_DIR_AN/*.nsk) >> $WORK_DIR_AN/load.log
-    printf "[%s] sending mrc file: " $DATE_TIME >> $WORK_DIR_AN/load.log
+    logit "sending mrc file"
     echo $(ls -l $WORK_DIR_AN/*.mrc) >> $WORK_DIR_AN/load.log
 	export SSHPASS="$PASSWORD"
 	# If this technique doesn't work try the one below.
@@ -121,42 +133,34 @@ if [ -f "$WORK_DIR_AN/$SUBMISSION_TAR_FILE" ]; then
 	# !
     ### Comment out the next 6 lines to test without sending files to OCLC.
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND
-   cd $REMOTE_DIR
-   put $WORK_DIR_AN/*.mrc
-   put $WORK_DIR_AN/*.nsk
-   bye
+cd $REMOTE_DIR
+put $WORK_DIR_AN/*.mrc
+put $WORK_DIR_AN/*.nsk
+bye
 !END_OF_COMMAND
     ### Comment out above to test without sending files to OCLC.
     # Post processing and reporting.
 	if [[ $? ]]; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "done sftp." >> $WORK_DIR_AN/load.log
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s %s\n" $DATE_TIME "removing tarball..." $WORK_DIR_AN/$SUBMISSION_TAR_FILE >> $WORK_DIR_AN/load.log
+		logit "done sftp."
+		logit "removing tarball: '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
 		rm $WORK_DIR_AN/$SUBMISSION_TAR_FILE
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "removing tarball from EPLAPP." >> $WORK_DIR_AN/load.log
+		logit "removing tarball from EPLAPP."
         ### Commented out the next line if you don't want to remove submission.tar file from production.
 		ssh sirsi\@edpl.sirsidynix.net "rm /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/$SUBMISSION_TAR_FILE" >&2 >> $WORK_DIR_AN/load.log
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "removing mrc files." >> $WORK_DIR_AN/load.log
+		logit "removing mrc files."
 		rm $WORK_DIR_AN/*.mrc 2>&1>/dev/null # there may not be a mrc if only cancels were run.
 		rm $WORK_DIR_AN/*.nsk 2>&1>/dev/null # there may not be a nsk if only mixed were run.
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "completed successfully." >> $WORK_DIR_AN/load.log
+		logit "completed successfully."
 		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
         DATE=$(date +%Y%m%d)
         echo "$DATE" | ssh sirsi\@edpl.sirsidynix.net 'cat - >> /software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2/oclc2.last.run'
 	else
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "failed to sftp." >> $WORK_DIR_AN/load.log
+		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
 		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
-	DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-	printf "[%s] %s %s\n" $DATE_TIME "**Error: unable to scp" $WORK_DIR_AN/$SUBMISSION_TAR_FILE >> $WORK_DIR_AN/load.log
+	logit "**Error: unable to scp '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
 fi
-DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-printf "[%s] %s\n" $DATE_TIME "######" >> $WORK_DIR_AN/load.log
+logit "== End =="
 # EOF
