@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.05.05_DEV"
+VERSION="2.06.02"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -308,7 +308,17 @@ run_mixed()
 	cat $MIXED_CATKEYS_FILE | sort | uniq >/tmp/oclc2.tmp.$$
 	mv /tmp/oclc2.tmp.$$ $MIXED_CATKEYS_FILE
 	logit "run_mixed()::catalogdump"
-	cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -om >$MIXED_FINAL_MARC_FILE 2>>$LOG_FILE
+	if [ -s "$MIXED_CATKEYS_FILE" ]; then
+		# To remove the 250 tag as Shona reqested, and at the behest of OCLC who were having issues 
+		# matching ON-ORDER records.
+		local flat_wo_250=/tmp/oclc2_wo_250.$$.flat
+		cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -of | grep -v -e'\.250\.' >$flat_wo_250
+		# With that convert it into marc with flatskip.
+		cat $flat_wo_250 | flatskip -if -aMARC -om >$MIXED_FINAL_MARC_FILE 2>>$LOG_FILE
+		# [ -f "$flat_wo_250" ] && rm $flat_wo_250
+	else
+		logit "*warning, run_mixed()::$MIXED_CATKEYS_FILE was empty or could not be found."
+	fi
 	logit "run_mixed()::exit"
 }
 # Cleans up temp files after process run.
