@@ -31,18 +31,18 @@
 ## Note: there are no comments allowed in this file because the password may include a '#'. 
 ##       The script will however read only the last line of the file
 ## This script assumes that both a mixed (.mrc file) and cancel (.nsk file) were produced on ILS.
-PATH=$PATH:/usr/bin:/bin:/home/ilsdev/projects/oclc2
+PATH=$PATH:/usr/bin:/bin:/home/ils/oclc/bin:
 SERVER="sirsi@edpl.sirsidynix.net"
 SFTP_USER=fx_cnedm
 SFTP_SERVER=filex-r3.oclc.org
 REMOTE_DIR=/xfer/metacoll/in/bib
-WORK_DIR_AN=/home/ilsdev/projects/oclc2
+WORK_DIR_AN=/home/ils/oclc
 PASSWORD_FILE=$WORK_DIR_AN/oclc2.password.txt
 PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="0.1.05"
+VERSION="1.0.00"
 ################### Functions.
 # Reads the password file for the SFTP site.
 get_password()
@@ -83,7 +83,7 @@ logit "== Starting $0 version $VERSION"
 hostname=$(hostname)
 logit "changing to '$WORK_DIR_AN' on '$hostname'"
 cd $WORK_DIR_AN || exit 1
-# Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ilsdev/projects/oclc2'.
+# Include '/' because when the mrc files are untarred, the directory tree starts in the $WORK_DIR_AN or '/home/ils/oclc/bin'.
 logit "SCP: copying submission tarball from $REMOTE to $hostname."
 scp $SERVER:/$REMOTE/$SUBMISSION_TAR_FILE .
 if [ -f "$SUBMISSION_TAR_FILE" ]; then
@@ -97,7 +97,7 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
     if ! ls *.nsk >/dev/null 2>&1; then
         if ! ls *.mrc >/dev/null  2>&1; then
             results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-            echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on ILS." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 failed!" $EMAILS
+            echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on ILS." | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 failed!" $EMAILS
             exit 1
         fi
     fi
@@ -105,11 +105,6 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	get_password
 	logit "sending nsk and mrc file(s) to $SFTP_SERVER"
 	export SSHPASS="$PASSWORD"
-	# If this technique doesn't work try the one below.
-	# if sshpass -p password sftp -oBatchMode=no user@serveraddress  << !
-	# put file*
-	# bye
-	# !
     ### Comment out the next 6 lines to test without sending files to OCLC.
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND >> $WORK_DIR_AN/load.log 2>&1
 cd $REMOTE_DIR
@@ -135,13 +130,13 @@ bye
 		rm *.mrc >> $WORK_DIR_AN/load.log 2>&1 # there may not be a mrc if only cancels were run.
 		rm *.nsk >> $WORK_DIR_AN/load.log 2>&1 # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
-		echo "Files successfully sent to OCLC." | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+		echo "Files successfully sent to OCLC." | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 Upload complete" $EMAILS
         DATE=$(date +%Y%m%d)
         echo "$DATE" | ssh $SERVER "cat - >> $REMOTE/oclc2.last.run"
 	else
 		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ilsdev@ilsdev1.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	logit "**Error: unable to scp '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"

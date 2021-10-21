@@ -21,22 +21,30 @@
 # MA 02110-1301, USA.
 #
 # Written by Andrew Nisbet at Edmonton Public Library
-# Rev: 
-#      1.0 - Dev. 
+#  
 ####################################################
 # Change comment below for appropriate server.
 PRODUCTION_SERVER=edpl.sirsidynix.net
 TEST_SERVER=edpltest.sirsidynix.net
 USER=sirsi
-REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
+ILS_REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
+EPL_ILS_REMOTE=/home/ils/oclc
 LOCAL=~/projects/oclc2
 APP=oclc2.sh
+APP_DRIVER=oclc2driver.sh
 README=Readme.md
 
-test: ${APP}
-	scp ${LOCAL}/${APP} ${USER}@${TEST_SERVER}:${REMOTE}
-	scp ${LOCAL}/${README} ${USER}@${TEST_SERVER}:${REMOTE}
-production: test
-	scp ${LOCAL}/${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
-	scp ${LOCAL}/${README} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
+.PHONY: test production epl-ils
 
+test: ${APP}
+	scp ${LOCAL}/${APP} ${USER}@${TEST_SERVER}:${ILS_REMOTE}
+	scp ${LOCAL}/${README} ${USER}@${TEST_SERVER}:${ILS_REMOTE}
+
+production: test epl-ils
+	scp ${LOCAL}/${APP} ${USER}@${PRODUCTION_SERVER}:${ILS_REMOTE}
+	scp ${LOCAL}/${README} ${USER}@${PRODUCTION_SERVER}:${ILS_REMOTE}
+
+epl-ils:
+	scp ${LOCAL}/${APP_DRIVER} ils@epl-ils.epl.ca:${EPL_ILS_REMOTE}/bin
+	scp ${LOCAL}/${README} ils@epl-ils.epl.ca:${EPL_ILS_REMOTE}
+	scp ${LOCAL}/oclc2.password.txt ils@epl-ils.epl.ca:${EPL_ILS_REMOTE}
