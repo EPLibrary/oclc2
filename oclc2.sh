@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.06.02"
+VERSION="2.06.03"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -310,12 +310,20 @@ run_mixed()
 	logit "run_mixed()::catalogdump"
 	if [ -s "$MIXED_CATKEYS_FILE" ]; then
 		# To remove the 250 tag as Shona reqested, and at the behest of OCLC who were having issues 
-		# matching ON-ORDER records.
-		local flat_wo_250=/tmp/oclc2_wo_250.$$.flat
-		cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -of | grep -v -e'\.250\.' >$flat_wo_250
-		# With that convert it into marc with flatskip.
-		cat $flat_wo_250 | flatskip -if -aMARC -om >$MIXED_FINAL_MARC_FILE 2>>$LOG_FILE
-		# [ -f "$flat_wo_250" ] && rm $flat_wo_250
+		# matching ON-ORDER records. Specifically they are having trouble matching 250 tags that 
+		# contain information about on-order release dates. This may be because the 250 was made 
+		# repeatable in 2013, and additional 250 tags throw off the matching algorithm used by OCLC.
+		#
+		# To mitigate that we will remove just 250 tags that start with 'Expected release' as Shona
+		# comments:
+		# 'It looks like 250s beginning with “Expected release” should be our target.' --October 15, 2021
+		# This was agreed to by Larry 'Lar' Wolkan from OCLC.
+		local flat_wo_on_order_250_tags=/tmp/oclc2_wo_250.$$.flat
+		cat $MIXED_CATKEYS_FILE | catalogdump -kf035 -of | grep -v -i -e '\.250\.[ \t]+\|aExpected release' >$flat_wo_on_order_250_tags
+		# With that convert it into marc 21.
+		cat $flat_wo_on_order_250_tags | flatskip -if -aMARC -om >$MIXED_FINAL_MARC_FILE 2>>$LOG_FILE
+		[ -f "$flat_wo_on_order_250_tags" ] rm $flat_wo_on_order_250_tags
+		logit "finished filtering out the on-order 250 tags with release dates, and cleaned up."
 	else
 		logit "*warning, run_mixed()::$MIXED_CATKEYS_FILE was empty or could not be found."
 	fi
