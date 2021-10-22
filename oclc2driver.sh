@@ -42,7 +42,7 @@ PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="1.0.00"
+VERSION="1.0.01"
 ################### Functions.
 
 
