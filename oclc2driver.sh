@@ -44,22 +44,7 @@ SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
 VERSION="1.0.00"
 ################### Functions.
-# Reads the password file for the SFTP site.
-get_password()
-{
-	# Tests, then reads the password file which is expected to be in the current working directory.
-	if [ ! -s "$PASSWORD_FILE" ]; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s %s\n" $DATE_TIME "SCP: ** error unable to SFTP results because I can't find the password file:" $PASSWORD_FILE >> $WORK_DIR_AN/load.log
-		exit 1
-	fi
-	PASSWORD=$(cat "$PASSWORD_FILE" | pipe.pl -zc0 -L-1)
-	if [ ! "$PASSWORD" ]; then
-		DATE_TIME=$(date +%Y%m%d-%H:%M:%S)
-		printf "[%s] %s\n" $DATE_TIME "SCP: *** failed to read password file." >> $WORK_DIR_AN/load.log
-		exit 1
-	fi
-}
+
 
 ## Set up logging.
 LOG_FILE="$WORK_DIR_AN/load.log"
@@ -77,6 +62,22 @@ logit()
         # If run from cron do write to log.
         echo -e "[$time] $message" >>$LOG_FILE
     fi
+}
+
+# Reads the password file for the SFTP site.
+get_password()
+{
+	# Tests, then reads the password file which is expected to be in the current working directory.
+	if [ -s "$PASSWORD_FILE" ]; then
+		PASSWORD=$(cat "$PASSWORD_FILE" | /home/ils/bin/pipe.pl -zc0 -L-1)
+		if [ -z "${PASSWORD}" ]; then
+			logit "*** error, the PASSWORD variable is unset, exiting."
+			exit 1
+		fi
+	else
+		logit "** error, password file '$PASSWORD_FILE' missing or empty!"
+		exit 1
+	fi
 }
 ################ end Functions
 logit "== Starting $0 version $VERSION"
@@ -104,7 +105,7 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
 	# Start the SFTP process.
 	get_password
 	logit "sending nsk and mrc file(s) to $SFTP_SERVER"
-	export SSHPASS="$PASSWORD"
+	export SSHPASS="${PASSWORD}"
     ### Comment out the next 6 lines to test without sending files to OCLC.
 	sshpass -e sftp -oBatchMode=no $SFTP_USER\@$SFTP_SERVER << !END_OF_COMMAND >> $WORK_DIR_AN/load.log 2>&1
 cd $REMOTE_DIR
