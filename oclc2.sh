@@ -40,7 +40,7 @@
 # *** Edit these to suit your environment *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################
-VERSION="2.06.03"
+VERSION="2.06.04"
 SHELL=/usr/bin/bash
 # default milestone 7 days ago.
 START_DATE=$(transdate -d-7)
@@ -138,6 +138,8 @@ usage()
     -m, -mixed, --mixed [yyyymmdd] - Run mixed project report from a given date.           
     -b, -both_mixed_cancels, --both_mixed_cancels [yyyymmdd] - Run both cancel and mixed projects
 	  (default action) from a given date.
+	-h, -help, --help - print this help message and exit.
+	-v, -version, --version - print version and exit.
   
   Examples: 
     $0                     # Run both cancels and mixed starting from 7 days ago.

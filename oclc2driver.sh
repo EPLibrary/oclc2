@@ -50,7 +50,6 @@ VERSION="1.0.01"
 LOG_FILE="$WORK_DIR_AN/load.log"
 # Logs messages to STDOUT and $LOG_FILE file.
 # param:  Message to put in the file.
-# param:  (Optional) name of a operation that called this function.
 logit()
 {
     local message="$1"
