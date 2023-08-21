@@ -42,7 +42,8 @@ PASSWORD=''
 EMAILS="ilsadmins@epl.ca"
 SUBMISSION_TAR_FILE='submission.tar'
 REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/OCLC2
-VERSION="1.0.01"
+# Use upgraded postfix -r 'ils@epl.ca'
+VERSION="1.0.02"
 ################### Functions.
 
 
@@ -97,7 +98,7 @@ if [ -f "$SUBMISSION_TAR_FILE" ]; then
     if ! ls *.nsk >/dev/null 2>&1; then
         if ! ls *.mrc >/dev/null  2>&1; then
             results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-            echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on ILS." | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 failed!" $EMAILS
+            echo -e "**error no files found in $SUBMISSION_TAR_FILE..\n $results \n Check for $SUBMISSION_TAR_FILE on ILS." | mailx -r 'ils@epl.ca' -s"OCLC2 failed!" $EMAILS
             exit 1
         fi
     fi
@@ -130,13 +131,13 @@ bye
 		rm *.mrc >> $WORK_DIR_AN/load.log 2>&1 # there may not be a mrc if only cancels were run.
 		rm *.nsk >> $WORK_DIR_AN/load.log 2>&1 # there may not be a nsk if only mixed were run.
 		logit "completed successfully."
-		echo "Files successfully sent to OCLC." | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 Upload complete" $EMAILS
+		echo "Files successfully sent to OCLC." | mailx -r 'ils@epl.ca' -s"OCLC2 Upload complete" $EMAILS
         DATE=$(date +%Y%m%d)
         echo "$DATE" | ssh $SERVER "cat - >> $REMOTE/oclc2.last.run"
 	else
 		logit "failed to sftp."
 		results=$(echo -e "\n--snip tail of log file--\n"; tail -25 $WORK_DIR_AN/load.log)
-		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -a'From:ils@epl-ils.epl.ca' -s"OCLC2 Upload failed" $EMAILS
+		echo -e "Uhoh, something went wrong while SFTP'ing to OCLC.\n$results" | mailx -r 'ils@epl.ca' -s"OCLC2 Upload failed" $EMAILS
 	fi
 else
 	logit "**Error: unable to scp '$WORK_DIR_AN/$SUBMISSION_TAR_FILE'"
